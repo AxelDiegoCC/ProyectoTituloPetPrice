@@ -1,0 +1,12 @@
+Arturo le dejo el link del proyecto para poder visualizar la Base de Datos debe ingresar a Firebase con su cuenta de Duoc UC debido a que le compartí el proyecto debido a que Firebase no permite crear un enlace publico
+Link del proyecto:
+https://console.firebase.google.com/project/petprice-99c09/settings/general/android:com.petprice.app?hl=es-419&fb_gclid=CjwKCAjw0sfHBhB6EiwAQtv5qVl0Te9EKH4Xmx40lq1PHWX4bCC7yxCRH0WwOKnZC8iIIG_--t4WQBoCzDoQAvD_BwE
+
+Usuarios del sistema:
+Usuario Cliente: 
+Correo: di.castillom@duocuc.cl
+Contraseña: Darklord.1.2.3.4
+
+Usuario Administrador:
+Correo: admin@petprice.com
+Contraseña:AdminAdmin
