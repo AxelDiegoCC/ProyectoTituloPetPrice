@@ -1,0 +1,61 @@
+<ion-header [translucent]="true">
+  <ion-toolbar class="colorPri icon">
+    <ion-buttons slot="start">
+      <ion-button fill="clear" (click)="goToProducts()">
+      <ion-icon class="iconPri" slot="start" name="chevron-back-outline"></ion-icon>
+      </ion-button> 
+    </ion-buttons>
+    <ion-title class="title-container">Detalle del producto</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true" class="product-detail-content">
+
+  <ion-card class="product-card" *ngIf="product">
+    <ion-card-content class="ion-text-center">
+      <img [src]="product.imagen" alt="{{ product.nombre }}" (error)="onImageError($event)" />
+
+      <h2 class="product-title">{{ product.nombre }}</h2>
+      <p class="product-brand">{{ product.marca }}</p>
+
+      <h3 class="product-price-lowest">
+        Precio más bajo: ${{ product.precio_minimo | number:'1.0-0' }}
+      </h3>
+
+      <p class="product-description" *ngIf="product.descripcion">
+        {{ product.descripcion }}
+      </p>
+    </ion-card-content>
+  </ion-card>
+
+  <ion-card class="stores-card" *ngIf="tiendasOrdenadas.length > 0">
+    <ion-card-header>
+      <ion-card-title>Tiendas disponibles</ion-card-title>
+    </ion-card-header>
+
+    <ion-card-content>
+      <div *ngFor="let tienda of tiendasOrdenadas" class="store-item">
+        <div class="store-info">
+          <a [href]="tienda.url" target="_blank" class="store-name">{{ tienda.nombre }}</a>
+          <a [href]="tienda.url" target="_blank" class="store-price">
+            ${{ tienda.precio | number:'1.0-0' }}
+          </a>
+        </div>
+      </div>
+    </ion-card-content>
+  </ion-card>
+
+</ion-content>
+
+<ion-footer class="ion-no-border">
+  <div class="footer-wrapper">
+    <ion-button expand="block" class="add-to-favorites-button">
+      Agregar a Favoritos
+    </ion-button>
+  </div>
+</ion-footer>
+
+<ng-template #loading>
+  <ion-spinner name="crescent"></ion-spinner>
+  <p>Cargando producto...</p>
+</ng-template>

@@ -1,0 +1,34 @@
+.product-title-header {
+  text-align: center;
+  color: white;
+  font-size: 1.1rem;
+}
+
+.product-brand {
+  font-size: 18px;
+  color: #666;
+  margin-bottom: 10px;
+}
+
+.product-price-lowest {
+  font-size: 20px;
+  color: #3880ff;
+  margin-bottom: 15px;
+}
+
+.store-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+
+  .store-name, .store-price {
+    font-size: 18px;
+    font-weight: 500;
+    text-decoration: none;
+  }
+
+  .store-price {
+    color: #3880ff;
+  }
+}

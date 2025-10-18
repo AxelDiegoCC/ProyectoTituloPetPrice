@@ -1,0 +1,145 @@
+<ion-header [translucent]="true">
+  <ion-toolbar class="colorPri icon toolbar-flex">
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/admin-panel"></ion-back-button>
+    </ion-buttons>
+    <div class="title-container">
+      <ion-title>Usuarios</ion-title>
+    </div>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true" class="ion-padding">
+
+  <ion-searchbar
+    placeholder="Buscar por nombre o correo"
+    [(ngModel)]="search"
+    (ionInput)="onSearch()">
+  </ion-searchbar>
+
+  <ion-segment [(ngModel)]="orderBy" (ionChange)="reload()">
+    <ion-segment-button value="createdAt"><ion-label>Recientes</ion-label></ion-segment-button>
+    <ion-segment-button value="fullName"><ion-label>Nombre</ion-label></ion-segment-button>
+    <ion-segment-button value="email"><ion-label>Correo</ion-label></ion-segment-button>
+  </ion-segment>
+
+  <ion-list inset="true">
+    <ion-item-sliding *ngFor="let u of users; let i = index">
+      <ion-item lines="none">
+        <ion-avatar slot="start">
+          <img src="assets/img/foto-perfil.png" alt="avatar" />
+        </ion-avatar>
+
+        <ion-label>
+          <h3>{{ u.fullName || '—' }}</h3>
+          <p>{{ u.email }}</p>
+          <ion-note>Rol: {{ u.role || 'user' }} · {{ u.phone || 's/teléfono' }}</ion-note>
+        </ion-label>
+      </ion-item>
+
+      <ion-item-options side="end">
+        <ion-item-option
+          (click)="editUser(u)"
+          expandable
+          style="display: flex; justify-content: center; align-items: center; background: transparent;">
+          <ion-button fill="solid" color="primary" shape="round" size="small" style="width: 40px; height: 40px; padding: 0;">
+            <ion-icon name="create-outline" style="font-size: 20px;"></ion-icon>
+          </ion-button>
+        </ion-item-option>
+
+        <ion-item-option
+          (click)="confirmDeleteUser(u)"
+          expandable
+          style="display: flex; justify-content: center; align-items: center; background: transparent;">
+          <ion-button fill="solid" color="danger" shape="round" size="small" style="width: 40px; height: 40px; padding: 0;">
+            <ion-icon name="trash-outline" style="font-size: 20px;"></ion-icon>
+          </ion-button>
+        </ion-item-option>
+      </ion-item-options>
+    </ion-item-sliding>
+  </ion-list>
+
+  <ion-infinite-scroll (ionInfinite)="loadMore($event)" threshold="120px" [disabled]="!hasMore">
+    <ion-infinite-scroll-content
+      loadingSpinner="crescent"
+      loadingText="Cargando...">
+    </ion-infinite-scroll-content>
+  </ion-infinite-scroll>
+
+  <ion-refresher slot="fixed" (ionRefresh)="refresh($event)">
+    <ion-refresher-content></ion-refresher-content>
+  </ion-refresher>
+
+</ion-content>
+
+<!-- FAB pequeño, posicionado más arriba del footer -->
+<ion-fab vertical="bottom" horizontal="end" slot="fixed" style="bottom: 100px; right: 18px;">
+  <ion-fab-button size="small" color="primary" (click)="addUserModalOpen = true">
+    <ion-icon name="person-add-outline"></ion-icon>
+  </ion-fab-button>
+</ion-fab>
+
+<!-- Modal para agregar usuario: usar ng-template para asegurar proyección -->
+<ion-modal
+  [isOpen]="addUserModalOpen"
+  (didDismiss)="addUserModalOpen = false"
+  [breakpoints]="[0, 0.4, 0.9]"
+  initialBreakpoint="0.4"
+  backdropDismiss="true"
+  style="--height: 90%; --top: 90%;">
+
+  <ng-template>
+    <ion-header>
+      <ion-toolbar>
+        <ion-title>Agregar Usuario</ion-title>
+        <ion-buttons slot="end">
+          <ion-button (click)="addUserModalOpen = false">Cerrar</ion-button>
+        </ion-buttons>
+      </ion-toolbar>
+    </ion-header>
+
+    <ion-content class="ion-padding">
+      <ion-item>
+        <ion-label position="floating">Nombre completo</ion-label>
+        <ion-input [(ngModel)]="newUser.name"></ion-input>
+      </ion-item>
+
+      <ion-item>
+        <ion-label position="floating">Correo</ion-label>
+        <ion-input [(ngModel)]="newUser.email" type="email"></ion-input>
+      </ion-item>
+
+      <ion-item>
+        <ion-label position="floating">Teléfono</ion-label>
+        <ion-input [(ngModel)]="newUser.phone"></ion-input>
+      </ion-item>
+
+      <ion-item>
+        <ion-label position="floating">Contraseña</ion-label>
+        <ion-input [(ngModel)]="newUser.password" [type]="showPassword ? 'text' : 'password'"></ion-input>
+        <ion-button slot="end" fill="clear" (click)="showPassword = !showPassword">
+          <ion-icon [name]="showPassword ? 'eye-off-outline' : 'eye-outline'"></ion-icon>
+        </ion-button>
+      </ion-item>
+
+      <ion-button expand="block" class="colorPri" (click)="addUser()">Agregar usuario</ion-button>
+    </ion-content>
+  </ng-template>
+</ion-modal>
+
+<ion-footer [translucent]="true" class="footer-fixed">
+  <ion-segment [value]="activeTab">
+    <ion-segment-button value="search" (click)="goToProducts()">
+      <ion-label>Buscar</ion-label>
+      <ion-icon name="search-outline"></ion-icon>
+    </ion-segment-button>
+    <ion-segment-button value="favorites" (click)="goToFavorites()">
+      <ion-label>Favoritos</ion-label>
+      <ion-icon name="star-outline"></ion-icon>
+    </ion-segment-button>
+    <ion-segment-button value="profile" (click)="goToProfile()">
+      <ion-label>Perfil</ion-label>
+      <ion-icon name="person-outline"></ion-icon>
+    </ion-segment-button>
+  </ion-segment>
+</ion-footer>

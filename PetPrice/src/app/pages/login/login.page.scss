@@ -1,0 +1,24 @@
+/* Borde/outline rojo cuando hay error */
+ion-input.is-invalid {
+    --border-color: #ef4444;    /* outline */
+    --highlight-color: #ef4444; /* foco */
+}
+
+/* Texto de ayuda debajo del campo */
+ion-note.hint {
+    display: block;
+    margin-top: 6px;
+    color: #991b1b;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+/* 👁️ Ojo gris */
+ion-button.eye-toggle {
+    --color: #6b7280; /* gris */
+}
+
+/* Que el botón del ojo no empuje el texto */
+ion-input [slot="end"] {
+    margin-inline-start: 4px;
+}

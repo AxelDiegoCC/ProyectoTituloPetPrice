@@ -1,0 +1,95 @@
+<ion-header [translucent]="true">
+  <ion-toolbar class="colorPri icon toolbar-flex">
+    <div class="title-container">
+      <ion-title>Mi Perfil</ion-title>
+    </div>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true" class="profile-screen ion-padding">
+
+  <!-- Cabecera compacta: avatar + nombre + correo -->
+  <ion-card class="profile-head-card">
+    <ion-card-content class="profile-head">
+      <ion-avatar class="avatar">
+        <img src="assets/img/foto-perfil.png" alt="Foto de perfil" />
+      </ion-avatar>
+      <div class="user-info">
+        <div class="name">{{ fullName || 'Usuario' }}</div>
+        <div class="email">{{ email || 'correo@ejemplo.com' }}</div>
+      </div>
+    </ion-card-content>
+  </ion-card>
+
+  <div class="section-title">Información Personal</div>
+
+  <!-- LECTURA -->
+  <ng-container *ngIf="!editing; else editMode">
+    <div class="field-static">Nombre Completo: {{ fullName || '—' }}</div>
+    <div class="field-static">Corr. Electr: {{ email || '—' }}</div>
+    <div class="field-static">Num. Teléfono: {{ phone || '—' }}</div>
+
+    <div class="baseBtn">
+      <ion-button expand="block" class="btnCua" (click)="enableEditing()">
+        Editar Información
+      </ion-button>
+      <ion-button expand="block" fill="outline" class="btn-float" (click)="logout()">
+        Cerrar sesión
+      </ion-button>
+    </div>
+  </ng-container>
+
+  <!-- EDICIÓN -->
+  <ng-template #editMode>
+    <ion-item class="profile-field">
+      <ion-label position="stacked">Nombre Completo</ion-label>
+      <ion-input [(ngModel)]="fullName" placeholder="Ingresa tu nombre"></ion-input>
+    </ion-item>
+
+    <ion-item class="profile-field">
+      <ion-label position="stacked">Correo Electrónico</ion-label>
+      <ion-input [(ngModel)]="email" type="email" placeholder="correo@ejemplo.com"></ion-input>
+    </ion-item>
+
+    <ion-item class="profile-field">
+      <ion-label position="stacked">Número de Teléfono</ion-label>
+      <ion-input [(ngModel)]="phone" type="tel" placeholder="+56 9 ..."></ion-input>
+    </ion-item>
+
+    <ion-item class="profile-field">
+      <ion-label position="stacked">Nueva Contraseña (opcional)</ion-label>
+      <ion-input [(ngModel)]="password" type="password" placeholder="••••••••"></ion-input>
+    </ion-item>
+
+    <div class="baseBtn">
+      <!-- Guardar en naranja (reutiliza patrón de botones) -->
+      <ion-button expand="block" class="btnQui" (click)="saveChanges()">
+        Guardar
+      </ion-button>
+      <!-- Cancelar con tu btnSec, pero anchura adaptada localmente -->
+      <ion-button expand="block" fill="outline" class="btnSex" (click)="cancelChanges()">
+        Cancelar
+      </ion-button>
+    </div>
+  </ng-template>
+</ion-content>
+
+<!-- Footer ya unificado en toda la app -->
+<ion-footer slot="fixed" [translucent]="true" class="footer-fixed">
+  <ion-segment [value]="activeTab">
+    <ion-segment-button value="search" (click)="goToProducts()">
+      <ion-label>Buscar</ion-label>
+      <ion-icon name="search-outline"></ion-icon>
+    </ion-segment-button>
+
+    <ion-segment-button value="favorites" (click)="goToFavorites()">
+      <ion-label>Favoritos</ion-label>
+      <ion-icon name="star-outline"></ion-icon>
+    </ion-segment-button>
+
+    <ion-segment-button value="profile" (click)="goToProfile()">
+      <ion-label>Perfil</ion-label>
+      <ion-icon name="person-outline"></ion-icon>
+    </ion-segment-button>
+  </ion-segment>
+</ion-footer>

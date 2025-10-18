@@ -1,0 +1,114 @@
+<ion-header [translucent]="true">
+  <ion-toolbar class="colorPri icon toolbar-flex">
+    <div class="title-container">
+      <ion-title>Mis Favoritos</ion-title>
+    </div>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true">
+
+  <ion-card button="true" class="basePro">
+    <ion-card-content>
+      <ion-grid>
+        <ion-row>
+          <ion-col size="4">
+            <img src="assets/img/eje1.webp" alt="img" />
+          </ion-col>
+          <ion-col size="8">
+            <ion-card-title>Champion Cat - 15kg</ion-card-title>
+            <ion-card-subtitle>$10.990</ion-card-subtitle>
+            <div class="icon-container">
+              <ion-button fill="clear" size="small" color="dark">
+                <ion-icon name="heart-outline"></ion-icon>
+              </ion-button>
+            </div>
+          </ion-col>
+        </ion-row>
+      </ion-grid>
+    </ion-card-content>
+  </ion-card>
+  <ion-card button="true" class="basePro">
+    <ion-card-content>
+      <ion-grid>
+        <ion-row>
+          <ion-col size="4">
+            <img src="assets/img/eje1.webp" alt="img" />
+          </ion-col>
+          <ion-col size="8">
+            <ion-card-title>Champion Dog - 25kg</ion-card-title>
+            <ion-card-subtitle>$24.990</ion-card-subtitle>
+            <div class="icon-container">
+              <ion-button fill="clear" size="small" color="dark">
+                <ion-icon name="heart-outline"></ion-icon>
+              </ion-button>
+            </div>
+          </ion-col>
+        </ion-row>
+      </ion-grid>
+    </ion-card-content>
+  </ion-card>
+  <ion-card button="true" class="basePro">
+    <ion-card-content>
+      <ion-grid>
+        <ion-row>
+          <ion-col size="4">
+            <img src="assets/img/eje1.webp" alt="img" />
+          </ion-col>
+          <ion-col size="8">
+            <ion-card-title>Champion Dog - 5kg</ion-card-title>
+            <ion-card-subtitle>$15.990</ion-card-subtitle>
+            <div class="icon-container">
+              <ion-button fill="clear" size="small" color="dark">
+                <ion-icon name="heart-outline"></ion-icon>
+              </ion-button>
+            </div>
+          </ion-col>
+        </ion-row>
+      </ion-grid>
+    </ion-card-content>
+  </ion-card>
+    <ion-card button="true" class="basePro">
+    <ion-card-content>
+      <ion-grid>
+        <ion-row>
+          <ion-col size="4">
+            <img src="assets/img/eje1.webp" alt="img" />
+          </ion-col>
+          <ion-col size="8">
+            <ion-card-title>Champion Dog - 5kg</ion-card-title>
+            <ion-card-subtitle>$15.990</ion-card-subtitle>
+            <div class="icon-container">
+              <ion-button fill="clear" size="small" color="dark">
+                <ion-icon name="heart-outline"></ion-icon>
+              </ion-button>
+            </div>
+          </ion-col>
+        </ion-row>
+      </ion-grid>
+    </ion-card-content>
+  </ion-card>
+
+    <ion-button class="btn-float" expand="block">
+      Obtener Pantallazo
+    </ion-button>
+</ion-content>
+
+<ion-footer slot="fixed" [translucent]="true" class="footer-fixed">
+  <ion-segment [value]="activeTab">
+    <ion-segment-button value="search" (click)="goToProducts()">
+      <ion-label>Buscar</ion-label>
+      <ion-icon name="search-outline"></ion-icon>
+    </ion-segment-button>
+
+    <ion-segment-button value="favorites">
+      <ion-label>Favoritos</ion-label>
+      <ion-icon name="star-outline"></ion-icon>
+    </ion-segment-button>
+
+    <ion-segment-button value="profile" (click)="goToProfile()">
+      <ion-label>Perfil</ion-label>
+      <ion-icon name="person-outline"></ion-icon>
+    </ion-segment-button>
+  </ion-segment>
+</ion-footer>

@@ -1,0 +1,85 @@
+<ion-header [translucent]="true">
+  <ion-toolbar class="colorPri icon">
+    <ion-button fill="clear" (click)="goToProducts()">
+      <ion-icon class="iconPri" slot="start" name="chevron-back-outline"></ion-icon>
+    </ion-button>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true" class="icon ion-padding">
+
+  <div class="baseLabel">
+    <ion-label>
+      <h1 class="title">Pet Price</h1>
+      <img src="\assets\img\logo.png" alt="Logo" class="logo" />
+      <h2 class="subtitle">Inicio de Sesión</h2>
+    </ion-label>
+  </div>
+
+  <!-- ===== Correo ===== -->
+  <ion-input
+    id="emailInput"
+    class="ion-margin-top"
+    label="Correo Electrónico"
+    label-placement="floating"
+    fill="outline"
+    type="email"
+    autocomplete="email"
+    inputmode="email"
+    [class.is-invalid]="!!emailError"
+    [attr.aria-invalid]="emailError ? 'true' : null"
+    aria-describedby="emailHelp"
+    [(ngModel)]="email"
+    (ionInput)="onEmailInput()"
+    (ionBlur)="emailTouched = true; updateEmailError()">
+    <ion-icon slot="start" name="mail-outline"></ion-icon>
+  </ion-input>
+
+  <ion-note id="emailHelp" class="hint" *ngIf="emailError">{{ emailError }}</ion-note>
+
+  <!-- ===== Contraseña ===== -->
+  <ion-input
+    id="passwordInput"
+    class="ion-margin-top"
+    label="Contraseña"
+    label-placement="floating"
+    fill="outline"
+    [type]="showPassword ? 'text' : 'password'"
+    autocomplete="current-password"
+    autocapitalize="off"
+    autocorrect="off"
+    [class.is-invalid]="!!passwordError"
+    [attr.aria-invalid]="passwordError ? 'true' : null"
+    aria-describedby="passwordHelp"
+    [(ngModel)]="password"
+    (ionInput)="onPasswordInput()"
+    (ionBlur)="passwordTouched = true; updatePasswordError()">
+    <ion-icon slot="start" name="lock-closed-outline"></ion-icon>
+
+    <!-- 👁️ Ojo gris -->
+    <ion-button
+      type="button"
+      slot="end"
+      fill="clear"
+      class="eye-toggle"
+      (click)="togglePasswordVisibility()"
+      aria-label="Mostrar u ocultar contraseña">
+      <ion-icon [name]="showPassword ? 'eye-off-outline' : 'eye-outline'"></ion-icon>
+    </ion-button>
+  </ion-input>
+
+  <ion-note id="passwordHelp" class="hint" *ngIf="passwordError">{{ passwordError }}</ion-note>
+
+  <div class="baseBtn">
+    <ion-button class="btnPri ion-margin-top" (click)="login()">Ingresar</ion-button>
+
+    <ion-button class="btnSec" expand="block" fill="outline" (click)="goToChangePassword()">
+      Olvidé mi Contraseña
+    </ion-button>
+
+    <ion-button class="btnTer ion-margin-top" fill="clear" (click)="goToCreateAccount()">
+      ¿No tienes cuenta?
+    </ion-button>
+  </div>
+
+</ion-content>

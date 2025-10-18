@@ -1,0 +1,117 @@
+<ion-header [translucent]="true">
+  <ion-toolbar class="colorPri icon toolbar-flex">
+    <div class="title-container">
+      <ion-title>Lista de Productos</ion-title>
+    </div>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true">
+  <!-- Búsqueda y filtros -->
+  <ion-searchbar
+    placeholder="Buscar producto..."
+    class="custom-search"
+    [(ngModel)]="searchTerm"
+    (ionInput)="aplicarFiltros()"
+  ></ion-searchbar>
+
+  <div class="filter-container">
+    <ion-button class="btnFil" id="simple-filter" expand="block">
+      <ion-icon slot="start" name="bag-outline"></ion-icon>
+      Ordenar por
+    </ion-button>
+
+    <ion-button class="btnFil" id="advanced-filter" expand="block">
+      <ion-icon slot="start" name="options-outline"></ion-icon>
+      Filtrar por
+    </ion-button>
+  </div>
+
+  <!-- Popover: Orden -->
+  <ion-popover trigger="simple-filter" triggerAction="click">
+    <ng-template>
+      <ion-content class="ion-padding">
+        <ion-list>
+          <ion-item button (click)="ordenar('price_desc')">Precio: Mayor a menor</ion-item>
+          <ion-item button (click)="ordenar('price_asc')">Precio: Menor a mayor</ion-item>
+          <ion-item button (click)="ordenar('name_asc')">Nombre A-Z</ion-item>
+          <ion-item button (click)="ordenar('name_desc')">Nombre Z-A</ion-item>
+        </ion-list>
+      </ion-content>
+    </ng-template>
+  </ion-popover>
+
+  <!-- Popover: Filtros avanzados -->
+  <ion-popover trigger="advanced-filter" triggerAction="click">
+    <ng-template>
+      <ion-content class="ion-padding">
+        <ion-list>
+          <ion-item>
+            <ion-label>Tipo de comida</ion-label>
+            <ion-select placeholder="Seleccionar" (ionChange)="filtrarCategoria($event)">
+              <ion-select-option value="perro">Perro</ion-select-option>
+              <ion-select-option value="gato">Gato</ion-select-option>
+            </ion-select>
+          </ion-item>
+
+          <ion-item>
+            <ion-label>Marca</ion-label>
+            <ion-select placeholder="Seleccionar" (ionChange)="filtrarMarca($event)">
+              <ion-select-option value="acana">Acana</ion-select-option>
+              <ion-select-option value="bravery">Bravery</ion-select-option>
+              <ion-select-option value="taste">Taste of the Wild</ion-select-option>
+              <ion-select-option value="royal">Royal Canin</ion-select-option>
+              <ion-select-option value="Master">Master Dog</ion-select-option>
+              <ion-select-option value="whiskas">Whiskas</ion-select-option>
+            </ion-select>
+          </ion-item>
+        </ion-list>
+      </ion-content>
+    </ng-template>
+  </ion-popover>
+
+  <!-- LISTADO DE PRODUCTOS -->
+  <div class="product-list">
+    <ion-card *ngFor="let product of filteredProducts" button="true" class="basePro" (click)="goToProductDetail(product.id)">
+      <ion-card-content>
+        <ion-grid>
+          <ion-row>
+            <ion-col size="4">
+              <img [src]="product.imagen" alt="{{ product.nombre }}" />
+            </ion-col>
+            <ion-col size="8">
+              <ion-card-title class="product-name">{{ product.nombre }}</ion-card-title>
+              <ion-card-subtitle class="product-price">
+                ${{ product.precio }}
+              </ion-card-subtitle>
+            </ion-col>
+          </ion-row>
+        </ion-grid>
+      </ion-card-content>
+    </ion-card>
+
+    <div *ngIf="filteredProducts?.length === 0" class="empty-message ion-padding">
+      No se encontraron productos.
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <ion-footer [translucent]="true" class="footer-fixed" slot="fixed">
+    <ion-segment [value]="activeTab">
+      <ion-segment-button value="search" (click)="goToProducts()">
+        <ion-label>Buscar</ion-label>
+        <ion-icon name="search-outline"></ion-icon>
+      </ion-segment-button>
+
+      <ion-segment-button value="favorites" (click)="goToFavorites()">
+        <ion-label>Favoritos</ion-label>
+        <ion-icon name="star-outline"></ion-icon>
+      </ion-segment-button>
+
+      <ion-segment-button value="profile" (click)="goToProfile()">
+        <ion-label>Perfil</ion-label>
+        <ion-icon name="person-outline"></ion-icon>
+      </ion-segment-button>
+    </ion-segment>
+  </ion-footer>
+</ion-content>

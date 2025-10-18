@@ -1,0 +1,111 @@
+<ion-header [translucent]="true">
+  <ion-toolbar class="colorPri icon">
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true" class="icon ion-padding">
+
+  <div class="baseLabel">
+    <ion-label>
+      <h1 class="title">Pet Price</h1>
+      <img src="\assets\img\logo.png" alt="Logo" class="logo" />
+      <h2 class="subtitle">Crear Cuenta</h2>
+    </ion-label>
+  </div>
+
+  <!-- Nombre -->
+  <ion-input
+    id="nameInput"
+    class="ion-margin-top"
+    label="Nombre Completo"
+    label-placement="floating"
+    fill="outline"
+    type="text"
+    autocomplete="name"
+    [class.is-invalid]="!!nameError"
+    [attr.aria-invalid]="nameError ? 'true' : null"
+    aria-describedby="nameHelp"
+    [(ngModel)]="name"
+    (ionInput)="onNameInput()"
+    (ionBlur)="nameTouched = true; updateNameError()">
+    <ion-icon slot="start" name="person-outline"></ion-icon>
+  </ion-input>
+  <ion-note id="nameHelp" class="hint" *ngIf="nameError">{{ nameError }}</ion-note>
+
+  <!-- Correo -->
+  <ion-input
+    id="emailInput"
+    class="ion-margin-top"
+    label="Correo Electrónico"
+    label-placement="floating"
+    fill="outline"
+    type="email"
+    autocomplete="email"
+    inputmode="email"
+    [class.is-invalid]="!!emailError"
+    [attr.aria-invalid]="emailError ? 'true' : null"
+    aria-describedby="emailHelp"
+    [(ngModel)]="email"
+    (ionInput)="onEmailInput()"
+    (ionBlur)="emailTouched = true; updateEmailError()">
+    <ion-icon slot="start" name="mail-outline"></ion-icon>
+  </ion-input>
+  <ion-note id="emailHelp" class="hint" *ngIf="emailError">{{ emailError }}</ion-note>
+
+  <!-- Teléfono -->
+  <ion-input
+    id="phoneInput"
+    class="ion-margin-top"
+    label="Número de Teléfono"
+    label-placement="floating"
+    fill="outline"
+    type="tel"
+    autocomplete="tel"
+    inputmode="tel"
+    [class.is-invalid]="!!phoneError"
+    [attr.aria-invalid]="phoneError ? 'true' : null"
+    aria-describedby="phoneHelp"
+    [(ngModel)]="phone"
+    (ionInput)="onPhoneInput()"
+    (ionBlur)="phoneTouched = true; updatePhoneError()">
+    <ion-icon slot="start" name="call-outline"></ion-icon>
+  </ion-input>
+  <ion-note id="phoneHelp" class="hint" *ngIf="phoneError">{{ phoneError }}</ion-note>
+
+  <!-- Contraseña -->
+  <ion-input
+    id="passwordInput"
+    class="ion-margin-top"
+    label="Contraseña"
+    label-placement="floating"
+    fill="outline"
+    [type]="showPassword ? 'text' : 'password'"
+    autocomplete="new-password"
+    autocapitalize="off"
+    autocorrect="off"
+    [class.is-invalid]="!!passwordError"
+    [attr.aria-invalid]="passwordError ? 'true' : null"
+    aria-describedby="passwordHelp"
+    [(ngModel)]="password"
+    (ionInput)="onPasswordInput()"
+    (ionBlur)="passwordTouched = true; updatePasswordError()">
+    <ion-icon slot="start" name="lock-closed-outline"></ion-icon>
+    <!-- 👁️ ojo gris -->
+    <ion-button
+      type="button"
+      slot="end"
+      fill="clear"
+      class="eye-toggle"
+      (click)="togglePasswordVisibility()"
+      aria-label="Mostrar u ocultar contraseña">
+      <ion-icon [name]="showPassword ? 'eye-off-outline' : 'eye-outline'"></ion-icon>
+    </ion-button>
+  </ion-input>
+  <ion-note id="passwordHelp" class="hint" *ngIf="passwordError">{{ passwordError }}</ion-note>
+
+  <div class="baseBtn">
+    <ion-button class="btnPri ion-margin-top" (click)="register()">Crear cuenta</ion-button>
+    <ion-button class="btnSec" expand="block" fill="outline" (click)="goToLogin()">Cancelar</ion-button>
+  </div>
+
+</ion-content>
