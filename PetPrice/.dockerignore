@@ -1,0 +1,22 @@
+﻿# Node/Angular artifacts
+node_modules
+www
+platforms
+android
+
+# Tooling noise
+.vscode
+.angular
+.git
+.gitignore
+.idea
+.DS_Store
+npm-debug.log*
+*.log
+
+# Ionic/Capacitor build caches
+ios
+www.zip
+
+# Docker
+.dockerignore

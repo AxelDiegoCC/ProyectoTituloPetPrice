@@ -1,0 +1,240 @@
+<ion-content [fullscreen]="true"
+             class="settings-page"
+             [class.modal-open]="modal==='changepw'">
+
+  <!-- HEADER (no fijo, dentro del content) -->
+  <header class="topbar">
+    <button class="tb-btn back" aria-label="Volver" (click)="goBack()">
+      <ion-icon name="arrow-back-outline"></ion-icon>
+    </button>
+    <h1 class="tb-title">Configuración</h1>
+    <span class="tb-spacer"></span>
+  </header>
+
+  <!-- CONTENIDO -->
+  <main class="content">
+    <!-- Bloque: Notificaciones -->
+    <section class="block">
+      <div class="block-head">
+        <ion-icon name="notifications-outline"></ion-icon>
+        <div>
+          <h2 class="b-title">Notificaciones</h2>
+          <p class="b-sub">Activa o desactiva las notificaciones</p>
+        </div>
+      </div>
+
+      <div class="item">
+        <div class="i-left">
+          <div class="i-title">Activar notificaciones</div>
+          <div class="i-sub">Recibe alertas sobre productos y ofertas</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox"
+                 [checked]="notificationsEnabled"
+                 (change)="toggleNotifications($event)">
+          <span class="track"></span>
+        </label>
+      </div>
+    </section>
+
+    <!-- Bloque: Apariencia (NUEVO UI sin popover) -->
+    <section class="block">
+      <div class="block-head">
+        <ion-icon name="color-palette-outline"></ion-icon>
+        <div>
+          <h2 class="b-title">Apariencia</h2>
+          <p class="b-sub">Personaliza la apariencia de la aplicación</p>
+        </div>
+      </div>
+
+      <div class="item" style="display:block">
+        <div class="i-left" style="margin-bottom:8px">
+          <div class="i-title">Tema de la app</div>
+          <div class="i-sub">
+            {{ theme === 'system' ? 'Según el sistema' : (theme === 'light' ? 'Claro' : 'Oscuro') }}
+            <ng-container *ngIf="theme==='system' && resolvedTheme">
+              · ahora: <strong>{{ resolvedTheme==='light' ? 'Claro' : 'Oscuro' }}</strong>
+            </ng-container>
+          </div>
+        </div>
+
+        <div class="theme-grid" role="radiogroup" aria-label="Tema">
+          <button class="theme-card"
+                  [class.active]="theme==='light'"
+                  role="radio"
+                  [attr.aria-checked]="theme==='light'"
+                  (click)="setTheme('light')">
+            <div class="preview light">
+              <span class="bar"></span><span class="bar short"></span><span class="chip"></span>
+            </div>
+            <div class="label">
+              <ion-icon name="sunny-outline"></ion-icon>
+              <span>Claro</span>
+            </div>
+          </button>
+
+          <button class="theme-card"
+                  [class.active]="theme==='dark'"
+                  role="radio"
+                  [attr.aria-checked]="theme==='dark'"
+                  (click)="setTheme('dark')">
+            <div class="preview dark">
+              <span class="bar"></span><span class="bar short"></span><span class="chip"></span>
+            </div>
+            <div class="label">
+              <ion-icon name="moon-outline"></ion-icon>
+              <span>Oscuro</span>
+            </div>
+          </button>
+
+          <button class="theme-card"
+                  [class.active]="theme==='system'"
+                  role="radio"
+                  [attr.aria-checked]="theme==='system'"
+                  (click)="setTheme('system')">
+            <div class="preview system">
+              <div class="half light">
+                <span class="bar"></span><span class="bar short"></span><span class="chip"></span>
+              </div>
+              <div class="half dark">
+                <span class="bar"></span><span class="bar short"></span><span class="chip"></span>
+              </div>
+            </div>
+            <div class="label">
+              <ion-icon name="settings-outline"></ion-icon>
+              <span>Sistema</span>
+            </div>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Bloque: Seguridad -->
+    <section class="block">
+      <div class="block-head">
+        <ion-icon name="lock-closed-outline"></ion-icon>
+        <div>
+          <h2 class="b-title">Seguridad</h2>
+          <p class="b-sub">Opciones de seguridad</p>
+        </div>
+      </div>
+
+      <button class="item link"
+              [disabled]="!canChangePassword"
+              (click)="openChangePassword()">
+        <div class="i-left">
+          <div class="i-title">Cambiar contraseña</div>
+          <div class="i-sub">
+            {{ canChangePassword ? 'Actualiza tu contraseña periódicamente'
+                                 : 'No disponible para administradores' }}
+          </div>
+        </div>
+        <ion-icon name="chevron-forward-outline" class="chev"></ion-icon>
+      </button>
+    </section>
+
+    <!-- Acción principal -->
+    <div class="cta-wrap">
+      <button class="btn-ghost" (click)="clearCache()">Limpiar caché de la aplicación</button>
+    </div>
+
+    <!-- Metadatos -->
+    <div class="meta">
+      <div>PetCompare – Versión 2.6.4</div>
+      <div>© 2025 Todos los derechos reservados</div>
+    </div>
+  </main>
+
+  <!-- OVERLAY + CARD: Cambiar contraseña -->
+  <div class="overlay" *ngIf="modal==='changepw'" (click)="closeModal()"></div>
+
+  <div class="dialog" *ngIf="modal==='changepw'">
+    <div class="dialog-head">
+      <h3>Cambiar contraseña</h3>
+      <button class="x" (click)="closeModal()" aria-label="Cerrar">
+        <ion-icon name="close-outline"></ion-icon>
+      </button>
+    </div>
+    <p class="dialog-sub">Introduce tu contraseña actual y la nueva.</p>
+
+    <form (ngSubmit)="submitChangePassword()" autocomplete="off">
+      <label class="f-label">Contraseña actual</label>
+      <div class="field">
+        <ion-icon name="lock-closed-outline"></ion-icon>
+        <input [type]="showPw ? 'text':'password'"
+               [(ngModel)]="pwForm.current"
+               name="cur"
+               required />
+        <button type="button" class="eye" (click)="showPw=!showPw" aria-label="Mostrar/Ocultar">
+          <ion-icon [name]="showPw ? 'eye-off-outline':'eye-outline'"></ion-icon>
+        </button>
+      </div>
+
+      <label class="f-label">Nueva contraseña</label>
+      <div class="field">
+        <ion-icon name="key-outline"></ion-icon>
+        <input [type]="showPw ? 'text':'password'"
+               [(ngModel)]="pwForm.next"
+               name="new"
+               minlength="6"
+               required />
+      </div>
+
+      <label class="f-label">Confirmar nueva contraseña</label>
+      <div class="field">
+        <ion-icon name="checkmark-done-outline"></ion-icon>
+        <input [type]="showPw ? 'text':'password'"
+               [(ngModel)]="pwForm.confirm"
+               name="confirm"
+               minlength="6"
+               required />
+      </div>
+
+      <button class="btn btn-grad" type="submit" [disabled]="changing">
+        {{ changing ? 'Guardando…' : 'Cambiar contraseña' }}
+      </button>
+      <button class="btn btn-ghost" type="button" (click)="closeModal()">Cancelar</button>
+    </form>
+  </div>
+</ion-content>
+
+<!-- FOOTER fijo -->
+<ion-footer class="footer-tabs" slot="fixed" [translucent]="false">
+  <ion-segment [value]="activeTab" class="tabs">
+    <ion-segment-button value="home"
+      (click)="goHome()"
+      [class.segment-button-checked]="activeTab === 'home'">
+      <div class="tab">
+        <ion-icon name="home-outline"></ion-icon>
+        <span class="tab-label">Inicio</span>
+      </div>
+    </ion-segment-button>
+
+    <ion-segment-button value="explore"
+      (click)="goExplore()"
+      [class.segment-button-checked]="activeTab === 'explore'">
+      <div class="tab">
+        <ion-icon name="search-outline"></ion-icon>
+        <span class="tab-label">Explorar</span>
+      </div>
+    </ion-segment-button>
+
+    <ion-segment-button value="favorites"
+      (click)="goFavorites()"
+      [class.segment-button-checked]="activeTab === 'favorites'">
+      <div class="tab">
+        <ion-icon name="heart-outline"></ion-icon>
+        <span class="tab-label">Favoritos</span>
+      </div>
+    </ion-segment-button>
+
+    <ion-segment-button value="profile"
+      (click)="goProfile()"
+      [class.segment-button-checked]="activeTab === 'profile'">
+      <div class="tab">
+        <ion-icon name="person-outline"></ion-icon>
+        <span class="tab-label">Perfil</span>
+      </div>
+    </ion-segment-button>
+  </ion-segment>
+</ion-footer>

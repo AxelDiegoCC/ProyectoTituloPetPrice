@@ -1,63 +1,100 @@
-<ion-header [translucent]="true">
-  <ion-toolbar class="colorPri icon toolbar-flex">
-    <div class="title-container">
-      <ion-title>Panel de Administrador</ion-title>
-    </div>
-  </ion-toolbar>
-</ion-header>
+<ion-content [fullscreen]="true" class="admin-page">
+  <!-- HEADER (no fijo) -->
+  <header class="hero">
+    <div class="hero-bg"></div>
+    <div class="hero-curve"></div>
 
-<ion-content [fullscreen]="true" class="icon admin-screen ion-padding">
-
-  <!-- Tarjeta superior estilo perfil -->
-  <ion-card class="admin-head-card">
-    <ion-card-content class="admin-head">
-      <ion-avatar class="avatar">
-        <img src="assets/img/foto-perfil.png" alt="Foto de perfil" />
-      </ion-avatar>
-      <div class="admin-info">
-        <div class="name">Admin</div>
-        <div class="role">Administrador</div>
+    <div class="hero-inner">
+      <div class="hero-title">
+        <ion-icon name="shield-checkmark-outline"></ion-icon>
+        <span>Panel de Administrador</span>
       </div>
-    </ion-card-content>
-  </ion-card>
 
-  <!-- Área de gestión -->
-  <div class="section-title">Área de Gestión</div>
-  <ion-list inset="true" class="admin-actions">
-    <ion-item lines="none" button detail="false" class="action-item" (click)="goManageUsers()">
-      <ion-icon slot="start" name="options-outline"></ion-icon>
-      <ion-label>Gestionar Usuarios</ion-label>
-      <ion-icon slot="end" name="chevron-forward-outline"></ion-icon>
-    </ion-item>
-  </ion-list>
-  <ion-list inset="true" class="admin-actions" (click)= "goManageProducts()">
-    <ion-item lines="none" button detail="false" class="action-item">
-      <ion-icon slot="start" name="bag-outline"></ion-icon>
-      <ion-label>Gestionar Productos</ion-label>
-      <ion-icon slot="end" name="chevron-forward-outline"></ion-icon>
-    </ion-item>
-  </ion-list>
-  <ion-button expand="block" fill="outline" class="btn-float" (click)="logout()">
-    Cerrar sesión
-  </ion-button>
+      <!-- PERFIL (dentro del header) -->
+      <div class="profile-card">
+        <img class="avatar" [src]="photoUrl || 'assets/img/foto-perfil.png'" alt="Administrador" />
+        <div class="info">
+          <h3>{{ displayName || 'Admin' }}</h3>
+          <p class="meta"><span class="dot online"></span> {{ role | titlecase }}</p>
+          <p class="email">{{ email || 'admin@petcompare.com' }}</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- KPIs -->
+    <div class="stats-card">
+      <div class="stat">
+        <div class="icon purple"><ion-icon name="cube-outline"></ion-icon></div>
+        <div class="val">{{ kpiProducts }}</div>
+        <div class="lbl">Productos</div>
+      </div>
+      <div class="divider"></div>
+      <div class="stat">
+        <div class="icon indigo"><ion-icon name="people-outline"></ion-icon></div>
+        <div class="val">{{ kpiUsers }}</div>
+        <div class="lbl">Usuarios</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- CONTENIDO -->
+  <section class="content">
+    <h4 class="section-title">Acciones de Administrador</h4>
+    <p class="section-sub">Gestiona todos los aspectos de la aplicación</p>
+
+    <button class="action-card" (click)="goManageProducts()">
+      <div class="leading pastel purple"><ion-icon name="cube-outline"></ion-icon></div>
+      <div class="text">
+        <h5>Gestionar Productos</h5>
+        <p>Agregar, editar o eliminar productos</p>
+      </div>
+      <ion-icon class="chev" name="chevron-forward-outline"></ion-icon>
+    </button>
+
+    <button class="action-card" (click)="goManageUsers()">
+      <div class="leading pastel green"><ion-icon name="people-outline"></ion-icon></div>
+      <div class="text">
+        <h5>Gestionar Usuarios</h5>
+        <p>Administrar cuentas de usuarios</p>
+      </div>
+      <ion-icon class="chev" name="chevron-forward-outline"></ion-icon>
+    </button>
+
+    <button class="action-card" (click)="goSystemSettings()">
+      <div class="leading pastel blue"><ion-icon name="settings-outline"></ion-icon></div>
+      <div class="text">
+        <h5>Configuración del Sistema</h5>
+        <p>Ajustes generales de la aplicación</p>
+      </div>
+      <ion-icon class="chev" name="chevron-forward-outline"></ion-icon>
+    </button>
+
+    <button class="btn-logout" (click)="logout()">
+      <ion-icon name="log-out-outline"></ion-icon>
+      <span>Cerrar sesión</span>
+    </button>
+
+    <div class="legal">
+      <p>PetCompare Admin - Versión 2.6.4</p>
+      <p>© 2025 Todos los derechos reservados</p>
+    </div>
+  </section>
 </ion-content>
 
-<!-- Footer unificado (igual que en products/favorites/profile) -->
-<ion-footer slot="fixed" [translucent]="true" class="footer-fixed">
-  <ion-segment [value]="activeTab">
-    <ion-segment-button value="search" (click)="goToProducts()">
-      <ion-label>Buscar</ion-label>
-      <ion-icon name="search-outline"></ion-icon>
+<!-- FOOTER tabs (FIJO) -->
+<ion-footer class="footer-tabs" slot="fixed" [translucent]="false">
+  <ion-segment [value]="activeTab" class="tabs">
+    <ion-segment-button value="home" (click)="goToHome()" [class.segment-button-checked]="activeTab==='home'">
+      <div class="tab"><ion-icon name="home-outline"></ion-icon><span class="tab-label">Inicio</span></div>
     </ion-segment-button>
-
-    <ion-segment-button value="favorites" (click)="goToFavorites()">
-      <ion-label>Favoritos</ion-label>
-      <ion-icon name="star-outline"></ion-icon>
+    <ion-segment-button value="explore" (click)="goToExplore()" [class.segment-button-checked]="activeTab==='explore'">
+      <div class="tab"><ion-icon name="search-outline"></ion-icon><span class="tab-label">Explorar</span></div>
     </ion-segment-button>
-
-    <ion-segment-button value="profile" (click)="goToProfile()">
-      <ion-label>Perfil</ion-label>
-      <ion-icon name="person-outline"></ion-icon>
+    <ion-segment-button value="favorites" (click)="goToFavorites()" [class.segment-button-checked]="activeTab==='favorites'">
+      <div class="tab"><ion-icon name="heart-outline"></ion-icon><span class="tab-label">Favoritos</span></div>
+    </ion-segment-button>
+    <ion-segment-button value="profile" (click)="goToProfile()" [class.segment-button-checked]="activeTab==='profile'">
+      <div class="tab"><ion-icon name="person-outline"></ion-icon><span class="tab-label">Perfil</span></div>
     </ion-segment-button>
   </ion-segment>
 </ion-footer>

@@ -1,10 +1,13 @@
 import { Component } from '@angular/core';
-import { Firestore, collection, query, orderBy as fbOrderBy, limit, startAfter, getDocs, doc, updateDoc, deleteDoc, setDoc, DocumentData, getDoc} from '@angular/fire/firestore';
-import { IonicModule, ToastController, AlertController, ModalController, ActionSheetController } from '@ionic/angular';
+import { addDoc, collection, deleteDoc, doc, DocumentData, Firestore, getCountFromServer, getDoc, getDocs, setDoc, updateDoc } from '@angular/fire/firestore';
+import { IonicModule, ToastController } from '@ionic/angular';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { Auth, updateProfile } from '@angular/fire/auth';
+import { Auth } from '@angular/fire/auth';
+
+type ModalKind = 'create' | 'edit' | 'delete' | null;
+type Categoria = 'Perro' | 'Gato' | '';
 
 @Component({
   standalone: true,
@@ -15,296 +18,381 @@ import { Auth, updateProfile } from '@angular/fire/auth';
 })
 export class AdminProductsPanelPage {
   products: any[] = [];
-  allProducts: any[] = []; // Mantener lista completa para búsqueda
+  allProducts: any[] = [];
   search = '';
-  pageSize = 20;
+  orderBy: 'last_updated' | 'nombre' | 'marca' = 'last_updated';
+  orderLabel = 'Recientes';
+
+  pageSize = 30;
   lastDocSnap: any = null;
   hasMore = true;
-  activeTab: 'search' | 'favorites' | 'profile' = 'profile';
-  // Modal agregar producto
-  productModalOpen = false;
-  editingProductModal = false;
-  currentProduct: any = {};
+
+  // Footer
+  activeTab: 'home' | 'explore' | 'favorites' | 'profile' = 'profile';
+
+  // Modal state y flags
+  modal: ModalKind = null;
+  creating = false;
+  saving = false;
+  deleting = false;
+
+  // Forms
+  createForm = {
+    nombre: '',
+    marca: '',
+    categoria: '' as Categoria,
+    descripcion: '',
+    imagen: '',
+    tiendas: [{ nombre: '', url: '', precio: null as number | null }]
+  };
+
+  editForm = {
+    id: '',
+    nombre: '',
+    marca: '',
+    categoria: '' as Categoria,
+    descripcion: '',
+    imagen: '',
+    tiendas: [{ nombre: '', url: '', precio: null as number | null }]
+  };
+
+  selectedProduct: any = null;
+
+  totalLabel = 'Cargando…';
+  placeholder = 'assets/img/placeholder.png';
 
   constructor(
     private fs: Firestore,
     private toastCtrl: ToastController,
-    private alertCtrl: AlertController,
-    private modalCtrl: ModalController,
-    private actionSheetCtrl: ActionSheetController,
     private router: Router,
     private auth: Auth,
-
   ) {}
 
-  ionViewWillEnter() {
+  async ionViewWillEnter() {
     this.activeTab = 'profile';
-    this.reload();
-    
+    await this.reload();
+    await this.updateTotalLabel();
   }
 
-  // ===== Cargar productos =====
+  // ===== Totales =====
+  private async updateTotalLabel() {
+    try {
+      const cnt = await getCountFromServer(collection(this.fs, 'products'));
+      const n = cnt.data().count || 0;
+      this.totalLabel = `${n} producto${n === 1 ? '' : 's'} registrado${n === 1 ? '' : 's'}`;
+    } catch {
+      this.totalLabel = `${this.products.length} productos listados`;
+    }
+  }
+
+  // ===== Orden cíclico =====
+  cycleOrder() {
+    this.orderBy = this.orderBy === 'last_updated' ? 'nombre' :
+                   this.orderBy === 'nombre' ? 'marca' : 'last_updated';
+    this.orderLabel = this.orderBy === 'last_updated' ? 'Recientes' :
+                      this.orderBy === 'nombre' ? 'Nombre' : 'Marca';
+    this.reload();
+  }
+
+  // ===== Carga y búsqueda =====
   async reload() {
     this.products = [];
     this.allProducts = [];
     this.lastDocSnap = null;
     this.hasMore = true;
 
-    try {
-      const ref = collection(this.fs, 'products');
-      const snap = await getDocs(ref);
-
-      let batch: any[] = snap.docs.map(d => ({ id: d.id, ...(d.data() as DocumentData) }));
-
-      // Calcular precio_minimo y tienda_mas_barata
-      batch = batch.map(p => {
-        let minPrecio = Infinity;
-        let tiendaBarata = '';
-        if (p.precios) {
-          for (const tienda in p.precios) {
-            const precio = Number(p.precios[tienda]?.precio ?? Infinity);
-            if (precio < minPrecio) {
-              minPrecio = precio;
-              tiendaBarata = tienda;
-            }
-          }
-        }
-        return {
-          ...p,
-          precio_minimo: minPrecio === Infinity ? 0 : minPrecio,
-          tienda_mas_barata: tiendaBarata
-        };
-      });
-
-      this.allProducts = batch;
-      this.applySearch();
-
-    } catch (err: any) {
-      console.error('Error cargando productos:', err);
-      this.presentToast('Error cargando productos', 'danger');
-    }
-  }
-
-  // ===== Filtrar productos por búsqueda =====
-  applySearch() {
-    const s = this.search.trim().toLowerCase();
-    if (!s) {
-      this.products = [...this.allProducts];
-    } else {
-      this.products = this.allProducts.filter(p => {
-        const nombre = (p.nombre || '').trim().toLowerCase();
-        const marca = (p.marca || '').trim().toLowerCase();
-        return nombre.includes(s) || marca.includes(s);
-      });
-    }
-  }
-
-  onSearch() {
+    const ref = collection(this.fs, 'products');
+    const snap = await getDocs(ref);
+    let batch: any[] = snap.docs.map(d => ({ id: d.id, ...(d.data() as DocumentData) }));
+    batch = batch.map(p => this.withMinPrice(p));
+    this.allProducts = this.sortList(batch);
     this.applySearch();
   }
 
-  // ===== Modal agregar producto =====
-  openAddProductModal() {
-    this.editingProductModal = false;
-    this.currentProduct = {
+  private sortList(list: any[]) {
+    if (this.orderBy === 'last_updated') {
+      return [...list].sort((a,b) => (new Date(b.last_updated || 0).getTime()) - (new Date(a.last_updated || 0).getTime()));
+    }
+    return [...list].sort((a,b) => (''+(a[this.orderBy]||'')).localeCompare((''+(b[this.orderBy]||''))));
+  }
+
+  private withMinPrice(p: any) {
+    let minPrecio = Number(p.precio_minimo ?? 0);
+    let tiendaBarata = p.tienda_mas_barata || '';
+    if (p.precios) {
+      minPrecio = Infinity; tiendaBarata = '';
+      for (const t in p.precios) {
+        const val = Number(p.precios[t]?.precio ?? Infinity);
+        if (val < minPrecio) { minPrecio = val; tiendaBarata = t; }
+      }
+      if (minPrecio === Infinity) minPrecio = 0;
+    }
+    return { ...p, precio_minimo: minPrecio, tienda_mas_barata: tiendaBarata };
+  }
+
+  applySearch() {
+    const s = this.search.trim().toLowerCase();
+    const base = this.sortList(this.allProducts);
+    this.products = !s ? base : base.filter(p =>
+      (p.nombre || '').toLowerCase().includes(s) ||
+      (p.marca  || '').toLowerCase().includes(s)
+    );
+  }
+  private searchTimer?: any;
+  onSearch() { clearTimeout(this.searchTimer); this.searchTimer = setTimeout(()=>this.applySearch(), 140); }
+
+  async refresh(ev: any) { await this.reload(); await this.updateTotalLabel(); ev?.target?.complete(); }
+  async loadMore(ev: any) { ev?.target?.complete(); this.hasMore = false; }
+
+  // ===== Modales =====
+  openCreate() {
+    this.modal = 'create';
+    this.creating = false;
+    this.createForm = {
       nombre: '',
       marca: '',
-      precio_minimo: 0,
+      categoria: '' as Categoria,
       descripcion: '',
-      tienda_mas_barata: '',
       imagen: '',
-      precios: {}
+      tiendas: [{ nombre: '', url: '', precio: null }]
     };
-    this.productModalOpen = true;
   }
 
-  closeProductModal() {
-    this.productModalOpen = false;
-    this.currentProduct = {};
+  openEdit(p: any) {
+    const withMin = this.withMinPrice(p);
+    this.selectedProduct = withMin;
+    this.modal = 'edit';
+    this.saving = false;
+
+    const tiendas: any[] = [];
+    if (withMin.precios) {
+      for (const t in withMin.precios) {
+        tiendas.push({
+          nombre: t,
+          precio: Number(withMin.precios[t]?.precio ?? null),
+          url: withMin.precios[t]?.url || ''
+        });
+      }
+    }
+    if (tiendas.length === 0) {
+      tiendas.push({ nombre: '', url: '', precio: null });
+    }
+
+    this.editForm = {
+      id: withMin.id,
+      nombre: withMin.nombre || '',
+      marca: withMin.marca || '',
+      categoria: (withMin.categoria as Categoria) || '' as Categoria,
+      descripcion: withMin.descripcion || '',
+      imagen: withMin.imagen || '',
+      tiendas
+    };
   }
 
-  async saveProduct() {
-    const { nombre, marca, descripcion, imagen, precio_minimo: precioInput } = this.currentProduct;
-    const precio = Number(precioInput);
+  openDelete(p: any) { this.modal = 'delete'; this.selectedProduct = p; this.deleting = false; }
 
-    if (!nombre || !marca || !precio || isNaN(precio)) {
-      this.presentToast('Completa los campos obligatorios', 'danger');
-      return;
+  closeModals(force = false) {
+    if (!force && (this.creating || this.saving || this.deleting)) return;
+    this.modal = null;
+    this.selectedProduct = null;
+  }
+
+  // ===== Chips categoría =====
+  setCategory(form: 'create' | 'edit', value: Categoria) {
+    (this as any)[form + 'Form'].categoria = value;
+  }
+
+  // ===== Crear =====
+  async createProduct() {
+    const { nombre, marca, categoria, descripcion, imagen, tiendas } = this.createForm;
+
+    if (!nombre?.trim() || !marca?.trim()) {
+      this.present('Completa nombre y marca', 'danger'); return;
+    }
+    if (!categoria) {
+      this.present('Selecciona la categoría (Perro o Gato)', 'danger'); return;
+    }
+    if (tiendas.some(t => !t.nombre?.trim() || t.precio === null || t.precio === undefined)) {
+      this.present('Completa precios y nombre de tiendas', 'danger'); return;
     }
 
     try {
-      const preciosMap: any = this.currentProduct.precios || {};
-      const tienda = this.currentProduct.tienda_mas_barata || 'Tienda1';
-      preciosMap[tienda] = { precio, url: this.currentProduct.url || '' };
+      this.creating = true;
 
-      // Calcular precio mínimo y tienda más barata
-      let minPrecio = Infinity;
-      let tiendaBarata = '';
-      for (const t in preciosMap) {
-        const p = Number(preciosMap[t]?.precio ?? Infinity);
-        if (p < minPrecio) {
-          minPrecio = p;
-          tiendaBarata = t;
-        }
+      const precios: any = {};
+      for (const t of tiendas) {
+        precios[t.nombre.trim()] = {
+          precio: Number(t.precio),
+          url: (t.url || '').trim()
+        };
       }
 
+      let min = Infinity, barata = '';
+      for (const k in precios) {
+        if (precios[k].precio < min) { min = precios[k].precio; barata = k; }
+      }
+      if (!isFinite(min)) min = 0;
+
       const data = {
-        nombre,
-        marca,
-        descripcion: descripcion || '',
-        imagen: imagen || '',
-        precio_minimo: minPrecio,
-        tienda_mas_barata: tiendaBarata,
-        precios: preciosMap,
+        nombre: nombre.trim(),
+        marca: marca.trim(),
+        categoria,
+        descripcion: (descripcion || '').trim(),
+        imagen: (imagen || '').trim(),
+        precios,
+        precio_minimo: min,
+        tienda_mas_barata: barata,
         last_updated: new Date().toISOString()
       };
 
-      if (this.editingProductModal) {
-        await updateDoc(doc(this.fs, 'products', this.currentProduct.id), data);
-        this.presentToast('Producto actualizado', 'primary');
-      } else {
-        const newDocRef = doc(collection(this.fs, 'products'));
-        await setDoc(newDocRef, data);
-        this.presentToast('Producto agregado', 'primary');
-      }
+      const newRef = doc(collection(this.fs, 'products'));
+      await setDoc(newRef, data);
 
-      this.closeProductModal();
+      const historicoRef = collection(newRef, 'historico_precios');
+      await addDoc(historicoRef, {
+        fecha: new Date().toISOString(),
+        precio_minimo: min
+      });
+
+      this.present('Producto agregado', 'primary');
+      this.closeModals(true);
       await this.reload();
+      await this.updateTotalLabel();
 
-    } catch (err: any) {
-      console.error(err);
-      this.presentToast(err.message || 'Error al guardar producto', 'danger');
+    } catch (e: any) {
+      console.error('ERROR REAL:', e);
+      this.present(`Error al guardar: ${e?.message || e}`, 'danger');
+    } finally {
+      this.creating = false;
     }
   }
 
-  onPrecioChange(event: any) {
-    const value = event.detail.value;
-    this.currentProduct.precio_minimo = value !== null ? Number(value) : 0;
+  // ===== Actualizar =====
+  async updateProduct() {
+    if (!this.editForm.id) return;
+
+    const { nombre, marca, categoria, descripcion, imagen, tiendas } = this.editForm;
+
+    if (!nombre?.trim() || !marca?.trim()) {
+      this.present('Completa nombre y marca', 'danger'); return;
+    }
+    if (!categoria) {
+      this.present('Selecciona la categoría (Perro o Gato)', 'danger'); return;
+    }
+    if (tiendas.some(t => !t.nombre?.trim() || t.precio === null || t.precio === undefined)) {
+      this.present('Completa precios y nombre de tiendas', 'danger'); return;
+    }
+
+    try {
+      this.saving = true;
+
+      const productRef = doc(this.fs, 'products', this.editForm.id);
+
+      // Obtener precio anterior
+      const snapshot = await getDoc(productRef);
+      const oldData = snapshot.data();
+      const oldPrice = oldData?.['precio_minimo'] ?? null;
+
+      // Array -> objeto precios
+      const precios: any = {};
+      for (const t of tiendas) {
+        precios[t.nombre.trim()] = {
+          precio: Number(t.precio),
+          url: (t.url || '').trim()
+        };
+      }
+
+      // Calcular mínimo
+      let min = Infinity, barata = '';
+      for (const k in precios) {
+        if (precios[k].precio < min) { min = precios[k].precio; barata = k; }
+      }
+      if (!isFinite(min)) min = 0;
+
+      const data = {
+        nombre: nombre.trim(),
+        marca: marca.trim(),
+        categoria,
+        descripcion: (descripcion || '').trim(),
+        imagen: (imagen || '').trim(),
+        precios,
+        precio_minimo: min,
+        tienda_mas_barata: barata,
+        last_updated: new Date().toISOString()
+      };
+
+      await updateDoc(productRef, data);
+
+      // Guardar histórico si cambió
+      if (oldPrice !== min) {
+        const historicoRef = collection(productRef, 'historico_precios');
+        await addDoc(historicoRef, {
+          fecha: new Date().toISOString(),
+          precio_minimo: min
+        });
+      }
+
+      this.present('Producto actualizado', 'primary');
+      this.closeModals(true);
+      await this.reload();
+
+    } catch (e: any) {
+      console.error(e);
+      this.present(`Error al actualizar: ${e?.message || e}`, 'danger');
+    } finally {
+      this.saving = false;
+    }
   }
 
-  // ===== Editar producto con AlertController =====
-  async editProduct(p: any) {
-    const alert = await this.alertCtrl.create({
-      header: 'Editar Producto',
-      inputs: [
-        { name: 'nombre', type: 'text', value: p.nombre || '', placeholder: 'Nombre' },
-        { name: 'marca', type: 'text', value: p.marca || '', placeholder: 'Marca' },
-        { name: 'descripcion', type: 'text', value: p.descripcion || '', placeholder: 'Descripción' },
-        { name: 'imagen', type: 'text', value: p.imagen || '', placeholder: 'URL Imagen' },
-        { name: 'precio', type: 'number', value: p.precio_minimo || 0, placeholder: 'Precio mínimo' }
-      ],
-      buttons: [
-        { text: 'Cancelar', role: 'cancel' },
-        {
-          text: 'Guardar',
-          handler: async (values: any) => {
-            const nombre = (values.nombre ?? '').trim();
-            const marca = (values.marca ?? '').trim();
-            const descripcion = (values.descripcion ?? '').trim();
-            const imagen = (values.imagen ?? '').trim();
-            const precio = Number(values.precio ?? 0);
+  // ===== Eliminar =====
+  async confirmDelete() {
+    if (!this.selectedProduct?.id) return;
+    try {
+      this.deleting = true;
+      await deleteDoc(doc(this.fs, 'products', this.selectedProduct.id));
+      this.products = this.products.filter(x => x.id !== this.selectedProduct.id);
 
-            if (!nombre || !marca || !precio || isNaN(precio)) {
-              this.presentToast('Completa los campos obligatorios', 'danger');
-              return false;
-            }
+      await this.present('Producto eliminado', 'primary');
 
-            try {
-              const preciosMap: any = p.precios || {};
-              const tienda = p.tienda_mas_barata || 'Tienda1';
-              preciosMap[tienda] = { precio, url: p.precios?.[tienda]?.url || '' };
+      this.deleting = false;
+      this.closeModals(true);
 
-              // Calcular precio mínimo y tienda más barata
-              let minPrecio = Infinity;
-              let tiendaBarata = '';
-              for (const t in preciosMap) {
-                const pr = Number(preciosMap[t]?.precio ?? Infinity);
-                if (pr < minPrecio) {
-                  minPrecio = pr;
-                  tiendaBarata = t;
-                }
-              }
-
-              const data = {
-                nombre,
-                marca,
-                descripcion,
-                imagen,
-                precio_minimo: minPrecio,
-                tienda_mas_barata: tiendaBarata,
-                precios: preciosMap,
-                last_updated: new Date().toISOString()
-              };
-
-              await updateDoc(doc(this.fs, 'products', p.id), data);
-
-              // Actualizar en lista local
-              const idx = this.products.findIndex(x => x.id === p.id);
-              if (idx >= 0) this.products[idx] = { ...this.products[idx], ...data };
-
-              this.presentToast('Producto actualizado', 'primary');
-              return true;
-            } catch (err: any) {
-              console.error(err);
-              this.presentToast(err.message || 'Error al actualizar producto', 'danger');
-              return false;
-            }
-          }
-        }
-      ]
-    });
-
-    await alert.present();
+      await this.updateTotalLabel();
+    } catch (e) {
+      console.error(e);
+      this.present('No se pudo eliminar', 'danger');
+    } finally {
+      this.deleting = false;
+    }
   }
 
-  // ===== Eliminar producto =====
-  async confirmDeleteProduct(p: any) {
-    const sheet = await this.actionSheetCtrl.create({
-      header: `Eliminar "${p.nombre}"`,
-      buttons: [
-        {
-          text: 'Eliminar',
-          icon: 'trash-outline',
-          handler: async () => {
-            try {
-              await deleteDoc(doc(this.fs, 'products', p.id));
-              this.products = this.products.filter(x => x.id !== p.id);
-              this.presentToast('Producto eliminado', 'primary');
-            } catch (e) {
-              console.error(e);
-              this.presentToast('No se pudo eliminar', 'danger');
-            }
-          }
-        },
-        { text: 'Cancelar', role: 'cancel', icon: 'close-outline' }
-      ]
-    });
-    await sheet.present();
-  }
-  // ========= Navegación footer =========
-  async goToProducts() {
-    await this.router.navigate(['/products']);
-  }
+  // ===== Nav =====
+  goBack() { this.router.navigate(['/admin-panel']); }
 
-  async goToFavorites() {
-    await this.router.navigate(['/favorites']);
-  }
+  async goToHome()      { this.activeTab = 'home';      await this.router.navigate(['/home']); }
+  async goToExplore()   { this.activeTab = 'explore';   await this.router.navigate(['/products']); }
+  async goToFavorites() { this.activeTab = 'favorites'; await this.router.navigate(['/favorites']); }
 
   async goToProfile() {
     const user = this.auth.currentUser;
-    if (!user) {
-      await this.router.navigate(['/login']);
-      return;
-    }
+    this.activeTab = 'profile';
+    if (!user) { await this.router.navigate(['/login']); return; }
     const snap = await getDoc(doc(this.fs, 'users', user.uid));
     const role = snap.exists() ? ((snap.data() as any).role || 'user') : 'user';
-    const target = role === 'admin' ? '/admin-panel' : '/profile';
-    await this.router.navigate([target]);
+    await this.router.navigate([role === 'admin' ? '/admin-panel' : '/profile'] );
   }
 
-  // ===== Utils =====
-  private async presentToast(message: string, color: 'primary' | 'danger' = 'primary') {
-    const toast = await this.toastCtrl.create({ message, duration: 2200, color });
-    await toast.present();
+  // ===== Toast =====
+  private async present(message: string, color: 'primary'|'danger'|'success'='primary') {
+    const t = await this.toastCtrl.create({ message, duration: 2200, color });
+    await t.present();
+  }
+
+  addStore(form: 'create' | 'edit') {
+    (this as any)[form + 'Form'].tiendas.push({ nombre: '', url: '', precio: null });
+  }
+
+  removeStore(form: 'create' | 'edit', index: number) {
+    (this as any)[form + 'Form'].tiendas.splice(index, 1);
   }
 }

@@ -3,9 +3,11 @@ import { IonicModule, ToastController } from '@ionic/angular';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { Firestore, doc, getDoc, updateDoc } from '@angular/fire/firestore';
-import { Auth, updateEmail, updatePassword, onAuthStateChanged } from '@angular/fire/auth';
-import { UserService } from 'src/app/services/User.Service';
+import { Firestore, doc, getDoc, updateDoc, collection, CollectionReference } from '@angular/fire/firestore';
+import { Auth, updateEmail, onAuthStateChanged } from '@angular/fire/auth';
+import { collectionData } from '@angular/fire/firestore';
+
+type Tab = 'home' | 'explore' | 'favorites' | 'profile';
 
 @Component({
   selector: 'app-profile',
@@ -15,20 +17,26 @@ import { UserService } from 'src/app/services/User.Service';
   imports: [IonicModule, CommonModule, FormsModule],
 })
 export class ProfilePage implements OnInit {
+  // Datos de usuario
+  uid: string | null = null;
   fullName: string = '';
   email: string = '';
   phone: string = '';
-  password: string = '';
-  uid: string | null = null;
+  photoUrl: string | null = null;
+  memberSince: string | null = null;
 
+  // UI estado
   editing = false;
-  showPassword = false;
 
-  // Footer activo
-  activeTab: 'search' | 'favorites' | 'profile' = 'profile';
+  // Footer
+  activeTab: Tab = 'profile';
+
+  // Favoritos
+  favoritesCount = 0;
+  private favsCol?: CollectionReference;
+  private favSub?: any;
 
   constructor(
-    private userService: UserService,
     private auth: Auth,
     private firestore: Firestore,
     private toastCtrl: ToastController,
@@ -37,14 +45,16 @@ export class ProfilePage implements OnInit {
   ) {}
 
   ngOnInit() {
-    onAuthStateChanged(this.auth, (user) => {
+    onAuthStateChanged(this.auth, async (user) => {
       if (user) {
         this.uid = user.uid;
         this.email = user.email || '';
-        this.loadUserData();
+        this.photoUrl = user.photoURL || null;
+        await this.loadUserData();
+        this.bindFavoritesCount();
       } else {
         this.showToast('Debes iniciar sesión para ver tu perfil');
-        this.router.navigate(['/login']);
+        this.safeNavigate('/login');
       }
     });
   }
@@ -54,18 +64,24 @@ export class ProfilePage implements OnInit {
     this.cdr.detectChanges();
   }
 
-  private detectSectionFromUrl(url: string): 'search' | 'favorites' | 'profile' {
+  ionViewDidLeave() {
+    this.favSub?.unsubscribe?.();
+    this.favSub = null;
+  }
+
+  private detectSectionFromUrl(url: string): Tab {
     const clean = url.split('?')[0].split('#')[0].toLowerCase();
     const segs = clean.split('/').filter(Boolean);
     const business = segs.find(s =>
-      s === 'products' || s === 'favorites' || s === 'profile' || s === 'admin-panel'
+      s === 'products' || s === 'favorites' || s === 'profile' || s === 'admin-panel' || s === 'home'
     );
     if (business === 'favorites') return 'favorites';
     if (business === 'profile' || business === 'admin-panel') return 'profile';
-    return 'search';
+    if (business === 'home') return 'home';
+    return 'explore';
   }
 
-  async loadUserData() {
+  private async loadUserData() {
     if (!this.uid) return;
     try {
       const userRef = doc(this.firestore, 'users', this.uid);
@@ -74,18 +90,44 @@ export class ProfilePage implements OnInit {
         const data = userSnap.data() as any;
         this.fullName = data.fullName || '';
         this.phone = data.phone || '';
+        const createdAt: string | Date | undefined = data.createdAt;
+        this.memberSince = this.formatMemberSince(createdAt);
       }
+      this.cdr.detectChanges();
     } catch (error) {
       console.error(error);
       this.showToast('Error al cargar datos del usuario');
     }
   }
 
-  enableEditing() {
-    this.editing = true;
-    this.showPassword = true;
-    this.password = '';
+  private formatMemberSince(createdAt?: string | Date): string | null {
+    if (!createdAt) return null;
+    try {
+      const d = new Date(createdAt);
+      const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+      return `${meses[d.getMonth()]} ${d.getFullYear()}`;
+    } catch {
+      return null;
+    }
   }
+
+  private bindFavoritesCount() {
+    if (!this.uid) return;
+    try {
+      const path = `users/${this.uid}/favorites`;
+      this.favsCol = (collection(this.firestore, path) as CollectionReference);
+      this.favSub?.unsubscribe?.();
+      this.favSub = collectionData(this.favsCol, { idField: 'id' }).subscribe(items => {
+        this.favoritesCount = (items || []).length;
+        this.cdr.detectChanges();
+      });
+    } catch (e) {
+      console.warn('No se pudo suscribir a favoritos:', e);
+      this.favoritesCount = 0;
+    }
+  }
+
+  enableEditing() { this.editing = true; }
 
   async saveChanges() {
     if (!this.uid) return;
@@ -93,46 +135,56 @@ export class ProfilePage implements OnInit {
     if (!user) return;
 
     try {
-      if (user.email !== this.email) {
+      if (this.email && user.email !== this.email) {
         await updateEmail(user, this.email);
       }
-      if (this.password) {
-        await updatePassword(user, this.password);
-      }
-
       const userRef = doc(this.firestore, 'users', this.uid);
       await updateDoc(userRef, {
-        fullName: this.fullName,
-        phone: this.phone,
-        email: this.email,
+        fullName: this.fullName || '',
+        phone: this.phone || '',
+        email: this.email || ''
       });
 
       this.editing = false;
-      this.showPassword = false;
-      this.password = '';
       this.showToast('Datos actualizados correctamente');
+      this.cdr.detectChanges();
     } catch (error: any) {
       console.error(error);
-      this.showToast(error.message || 'Error al guardar cambios');
+      const msg =
+        error?.code === 'auth/requires-recent-login'
+          ? 'Por seguridad, vuelve a iniciar sesión para actualizar estos datos.'
+          : (error?.message || 'Error al guardar cambios');
+      this.showToast(msg);
     }
   }
 
-  cancelChanges() {
-    this.editing = false;
-    this.showPassword = false;
-    this.password = '';
-    this.loadUserData();
-  }
+  cancelChanges() { this.editing = false; this.loadUserData(); }
 
   async logout() {
     try {
       await this.auth.signOut();
-      this.router.navigate(['/login']);
+      this.safeNavigate('/login');
       this.showToast('Sesión cerrada correctamente');
     } catch (error) {
       console.error(error);
       this.showToast('Error al cerrar sesión');
     }
+  }
+
+  goToSettings() { this.safeNavigate('/configurations'); }
+
+  // ===== Tabs Nav (rutas correctas) =====
+  async goToHome()      { this.activeTab = 'home';      await this.safeNavigate('/home'); }
+  async goToExplore()   { this.activeTab = 'explore';   await this.safeNavigate('/products'); }
+  async goToFavorites() { this.activeTab = 'favorites'; await this.safeNavigate('/favorites'); }
+  async goToProfile()   { this.activeTab = 'profile';   await this.safeNavigate('/profile'); }
+
+  private async safeNavigate(target: string) {
+    const current = this.router.url.split('?')[0].split('#')[0];
+    if (current !== target) {
+      await this.router.navigate([target]);
+    }
+    this.cdr.detectChanges();
   }
 
   private async showToast(message: string) {
@@ -142,52 +194,5 @@ export class ProfilePage implements OnInit {
       color: 'primary',
     });
     await toast.present();
-  }
-
-  // ===== Navegación del footer (unificada por rol) =====
-  async goToProducts() {
-    this.activeTab = 'search';
-    await this.router.navigate(['/products']);
-    this.cdr.detectChanges();
-  }
-
-  async goToFavorites() {
-    this.activeTab = 'favorites';
-    await this.router.navigate(['/favorites']);
-    this.cdr.detectChanges();
-  }
-
-  async goToProfile() {
-    await this.navigateToProfileByRole();
-  }
-
-  goToHome() {
-    // compat: si tu template aún llama goToHome()
-    this.goToProducts();
-  }
-
-  private async navigateToProfileByRole() {
-    const user = this.auth.currentUser;
-    if (!user) {
-      await this.router.navigate(['/login']);
-      return;
-    }
-
-    try {
-      const snap = await getDoc(doc(this.firestore, 'users', user.uid));
-      const role = snap.exists() ? ((snap.data() as any).role || 'user') : 'user';
-      const target = role === 'admin' ? '/admin-panel' : '/profile';
-
-      const current = this.router.url.split('?')[0].split('#')[0];
-      if (current !== target) {
-        await this.router.navigate([target]);
-      }
-      this.activeTab = 'profile';
-      this.cdr.detectChanges();
-    } catch (error) {
-      console.error('Error obteniendo rol del usuario:', error);
-      // Fallback seguro
-      await this.router.navigate(['/profile']);
-    }
   }
 }

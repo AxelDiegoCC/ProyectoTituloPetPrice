@@ -1,117 +1,190 @@
-<ion-header [translucent]="true">
-  <ion-toolbar class="colorPri icon toolbar-flex">
-    <div class="title-container">
-      <ion-title>Lista de Productos</ion-title>
+<ion-content [fullscreen]="true" class="products-page" [class.sheet-open]="filtersOpen">
+  <!-- HEADER (no fijo, dentro del content) -->
+  <header class="hero">
+    <div class="hero-bg"></div>
+    <div class="hero-inner">
+      <h1 class="hero-title">Productos</h1>
+      <p class="hero-sub">Compara precios y ahorra más</p>
+
+      <div class="searchbar">
+        <ion-icon name="search-outline"></ion-icon>
+        <input
+          type="text"
+          placeholder="Buscar productos..."
+          aria-label="Buscar productos"
+          [(ngModel)]="searchTerm"
+          (input)="onSearchTermChange()" />
+      </div>
     </div>
-  </ion-toolbar>
-</ion-header>
+  </header>
 
-<ion-content [fullscreen]="true">
-  <!-- Búsqueda y filtros -->
-  <ion-searchbar
-    placeholder="Buscar producto..."
-    class="custom-search"
-    [(ngModel)]="searchTerm"
-    (ionInput)="aplicarFiltros()"
-  ></ion-searchbar>
+  <!-- CONTROLES -->
+  <section class="controls">
+    <div class="left">{{ filteredProducts.length }} producto{{ filteredProducts.length===1 ? '' : 's' }} encontrados</div>
+    <div class="right">
+      <button class="btn-icon" aria-label="Cambiar orden" (click)="cycleOrder()">
+        <ion-icon name="swap-vertical-outline"></ion-icon>
+      </button>
+      <button class="btn-chip" type="button" (click)="openFilters()">
+        <ion-icon name="options-outline"></ion-icon>
+        <span>Filtros</span>
+      </button>
+    </div>
+  </section>
 
-  <div class="filter-container">
-    <ion-button class="btnFil" id="simple-filter" expand="block">
-      <ion-icon slot="start" name="bag-outline"></ion-icon>
-      Ordenar por
-    </ion-button>
+  <!-- LISTA -->
+  <section class="list">
+    <article class="card"
+             *ngFor="let p of filteredProducts"
+             (click)="goToProductDetail(p.id)">
+      <div class="thumb">
+        <img [src]="p.imagen || 'assets/img/eje1.webp'" [alt]="p.nombre" />
+      </div>
 
-    <ion-button class="btnFil" id="advanced-filter" expand="block">
-      <ion-icon slot="start" name="options-outline"></ion-icon>
-      Filtrar por
-    </ion-button>
-  </div>
+      <div class="body">
+        <div class="row-top">
+          <span class="brand">{{ (p.marca || '').toUpperCase() }}</span>
+        </div>
+        <h2 class="title">{{ p.nombre }}</h2>
 
-  <!-- Popover: Orden -->
-  <ion-popover trigger="simple-filter" triggerAction="click">
-    <ng-template>
-      <ion-content class="ion-padding">
-        <ion-list>
-          <ion-item button (click)="ordenar('price_desc')">Precio: Mayor a menor</ion-item>
-          <ion-item button (click)="ordenar('price_asc')">Precio: Menor a mayor</ion-item>
-          <ion-item button (click)="ordenar('name_asc')">Nombre A-Z</ion-item>
-          <ion-item button (click)="ordenar('name_desc')">Nombre Z-A</ion-item>
-        </ion-list>
-      </ion-content>
-    </ng-template>
-  </ion-popover>
+        <div class="rating">
+          <div class="stars" aria-label="Calificación promedio">
+            <ion-icon *ngFor="let s of [1,2,3,4,5]" [name]="starName(p.ratingAvg, s)"></ion-icon>
+          </div>
+          <span class="score" *ngIf="p.ratingCount > 0">
+            ({{ p.ratingAvg | number:'1.1-1' }})
+          </span>
+          <span class="score" *ngIf="!p.ratingCount">(0)</span>
+        </div>
 
-  <!-- Popover: Filtros avanzados -->
-  <ion-popover trigger="advanced-filter" triggerAction="click">
-    <ng-template>
-      <ion-content class="ion-padding">
-        <ion-list>
-          <ion-item>
-            <ion-label>Tipo de comida</ion-label>
-            <ion-select placeholder="Seleccionar" (ionChange)="filtrarCategoria($event)">
-              <ion-select-option value="perro">Perro</ion-select-option>
-              <ion-select-option value="gato">Gato</ion-select-option>
-            </ion-select>
-          </ion-item>
+        <div class="price-row">
+          <div class="price">{{ p.precio }}</div>
 
-          <ion-item>
-            <ion-label>Marca</ion-label>
-            <ion-select placeholder="Seleccionar" (ionChange)="filtrarMarca($event)">
-              <ion-select-option value="acana">Acana</ion-select-option>
-              <ion-select-option value="bravery">Bravery</ion-select-option>
-              <ion-select-option value="taste">Taste of the Wild</ion-select-option>
-              <ion-select-option value="royal">Royal Canin</ion-select-option>
-              <ion-select-option value="Master">Master Dog</ion-select-option>
-              <ion-select-option value="whiskas">Whiskas</ion-select-option>
-            </ion-select>
-          </ion-item>
-        </ion-list>
-      </ion-content>
-    </ng-template>
-  </ion-popover>
+          <!-- ❤️ solo si hay sesión -->
+          <button class="fav" type="button" aria-label="Alternar favorito"
+                  *ngIf="isLoggedIn"
+                  [attr.aria-pressed]="p.isFav"
+                  (click)="$event.stopPropagation(); toggleFavorite(p)">
+            <ion-icon [name]="p.isFav ? 'heart' : 'heart-outline'"></ion-icon>
+          </button>
+        </div>
 
-  <!-- LISTADO DE PRODUCTOS -->
-  <div class="product-list">
-    <ion-card *ngFor="let product of filteredProducts" button="true" class="basePro" (click)="goToProductDetail(product.id)">
-      <ion-card-content>
-        <ion-grid>
-          <ion-row>
-            <ion-col size="4">
-              <img [src]="product.imagen" alt="{{ product.nombre }}" />
-            </ion-col>
-            <ion-col size="8">
-              <ion-card-title class="product-name">{{ product.nombre }}</ion-card-title>
-              <ion-card-subtitle class="product-price">
-                ${{ product.precio }}
-              </ion-card-subtitle>
-            </ion-col>
-          </ion-row>
-        </ion-grid>
-      </ion-card-content>
-    </ion-card>
+        <div class="meta" *ngIf="p.tiendasCount > 0">
+          en {{ p.tiendasCount }} tienda{{ p.tiendasCount>1?'s':'' }}
+        </div>
+      </div>
+    </article>
 
-    <div *ngIf="filteredProducts?.length === 0" class="empty-message ion-padding">
+    <div *ngIf="!filteredProducts.length" class="empty">
       No se encontraron productos.
     </div>
+  </section>
+</ion-content>
+
+<!-- FOOTER fijo -->
+<ion-footer class="footer-tabs" slot="fixed" [translucent]="false">
+  <ion-segment [value]="activeTab" class="tabs">
+    <ion-segment-button value="home"
+      (click)="goToHome()"
+      [class.segment-button-checked]="activeTab === 'home'">
+      <div class="tab">
+        <ion-icon name="home-outline"></ion-icon>
+        <span class="tab-label">Inicio</span>
+      </div>
+    </ion-segment-button>
+
+    <ion-segment-button value="explore"
+      (click)="goToProducts()"
+      [class.segment-button-checked]="activeTab === 'explore'">
+      <div class="tab">
+        <ion-icon name="search-outline"></ion-icon>
+        <span class="tab-label">Explorar</span>
+      </div>
+    </ion-segment-button>
+
+    <ion-segment-button value="favorites"
+      (click)="goToFavorites()"
+      [class.segment-button-checked]="activeTab === 'favorites'">
+      <div class="tab">
+        <ion-icon name="heart-outline"></ion-icon>
+        <span class="tab-label">Favoritos</span>
+      </div>
+    </ion-segment-button>
+
+    <ion-segment-button value="profile"
+      (click)="goToProfile()"
+      [class.segment-button-checked]="activeTab === 'profile'">
+      <div class="tab">
+        <ion-icon name="person-outline"></ion-icon>
+        <span class="tab-label">Perfil</span>
+      </div>
+    </ion-segment-button>
+  </ion-segment>
+</ion-footer>
+
+<!-- OVERLAY + SHEET DE FILTROS -->
+<div class="overlay" *ngIf="filtersOpen" (click)="closeFilters()"></div>
+
+<aside class="sheet" [class.open]="filtersOpen" role="dialog" aria-label="Filtros de productos">
+  <div class="sheet-head">
+    <h3>Filtros</h3>
+    <button class="x" aria-label="Cerrar" (click)="closeFilters()">
+      <ion-icon name="close-outline"></ion-icon>
+    </button>
   </div>
 
-  <!-- FOOTER -->
-  <ion-footer [translucent]="true" class="footer-fixed" slot="fixed">
-    <ion-segment [value]="activeTab">
-      <ion-segment-button value="search" (click)="goToProducts()">
-        <ion-label>Buscar</ion-label>
-        <ion-icon name="search-outline"></ion-icon>
-      </ion-segment-button>
+  <div class="sheet-body">
+    <!-- Categoría -->
+    <div class="group">
+      <div class="group-title">Categoría</div>
+      <div class="checklist">
+        <label class="chk" *ngFor="let c of categories">
+          <input type="checkbox"
+                 [checked]="selectedCategories.has(c)"
+                 (change)="toggleCategory(c, $event)">
+          <span>{{ c | titlecase }}</span>
+        </label>
+      </div>
+    </div>
 
-      <ion-segment-button value="favorites" (click)="goToFavorites()">
-        <ion-label>Favoritos</ion-label>
-        <ion-icon name="star-outline"></ion-icon>
-      </ion-segment-button>
+    <div class="divider"></div>
 
-      <ion-segment-button value="profile" (click)="goToProfile()">
-        <ion-label>Perfil</ion-label>
-        <ion-icon name="person-outline"></ion-icon>
-      </ion-segment-button>
-    </ion-segment>
-  </ion-footer>
-</ion-content>
+    <!-- Precio -->
+    <div class="group">
+      <div class="group-title">Precio</div>
+      <ion-range
+        dualKnobs="true"
+        [min]="priceMin"
+        [max]="priceMax"
+        [step]="priceStep"
+        [(ngModel)]="priceRange"
+        (ionChange)="onFilterChange()">
+      </ion-range>
+      <div class="range-labels">
+        <span>{{ priceRange.lower | currency:'CLP':'symbol':'1.0-0' }}</span>
+        <span>{{ priceRange.upper | currency:'CLP':'symbol':'1.0-0' }}</span>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Marca -->
+    <div class="group">
+      <div class="group-title">Marca</div>
+      <div class="checklist scroll">
+        <label class="chk" *ngFor="let b of brands">
+          <input type="checkbox"
+                 [checked]="selectedBrands.has(b)"
+                 (change)="toggleBrand(b, $event)">
+          <span>{{ b }}</span>
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <div class="sheet-foot">
+    <button class="btn btn-apply" (click)="applyFiltersAndClose()">
+      Ver {{ previewCount }} producto{{ previewCount===1?'':'s' }}
+    </button>
+  </div>
+</aside>

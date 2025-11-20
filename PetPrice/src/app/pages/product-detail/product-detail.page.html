@@ -1,61 +1,251 @@
-<ion-header [translucent]="true">
-  <ion-toolbar class="colorPri icon">
-    <ion-buttons slot="start">
-      <ion-button fill="clear" (click)="goToProducts()">
-      <ion-icon class="iconPri" slot="start" name="chevron-back-outline"></ion-icon>
-      </ion-button> 
-    </ion-buttons>
-    <ion-title class="title-container">Detalle del producto</ion-title>
-  </ion-toolbar>
-</ion-header>
+<ion-content [fullscreen]="true" class="product-detail-page" *ngIf="product; else loading">
+  <!-- HEADER (no fijo) -->
+  <header class="hero">
+    <div class="hero-bg"></div>
 
-<ion-content [fullscreen]="true" class="product-detail-content">
+    <div class="hero-inner">
+      <div class="hero-row">
+        <button class="hbtn hbtn-ghost" aria-label="Volver" (click)="goBack()">
+          <ion-icon name="arrow-back-outline"></ion-icon>
+        </button>
 
-  <ion-card class="product-card" *ngIf="product">
-    <ion-card-content class="ion-text-center">
-      <img [src]="product.imagen" alt="{{ product.nombre }}" (error)="onImageError($event)" />
+        <div class="hero-titlewrap">
+          <div class="hero-title">Detalle del producto</div>
+        </div>
 
-      <h2 class="product-title">{{ product.nombre }}</h2>
-      <p class="product-brand">{{ product.marca }}</p>
+        <!-- ❤️ solo si hay sesión -->
+        <button class="hbtn hbtn-ghost fav"
+                *ngIf="isLoggedIn"
+                aria-label="Favorito"
+                [attr.aria-pressed]="isFav"
+                (click)="toggleFavorite()">
+          <ion-icon [name]="isFav ? 'heart' : 'heart-outline'"></ion-icon>
+        </button>
+      </div>
+    </div>
 
-      <h3 class="product-price-lowest">
-        Precio más bajo: ${{ product.precio_minimo | number:'1.0-0' }}
-      </h3>
+    <div class="hero-scoop"><div class="scoop-core"></div></div>
+  </header>
 
-      <p class="product-description" *ngIf="product.descripcion">
-        {{ product.descripcion }}
-      </p>
-    </ion-card-content>
-  </ion-card>
+  <!-- CONTENIDO -->
+  <main class="content">
+    <!-- CARD: galería + nombre + marca -->
+    <article class="card product-card">
+      <div class="gallery">
+        <img [src]="product.imagen" [alt]="product.nombre" (error)="onImageError($event)" />
+      </div>
 
-  <ion-card class="stores-card" *ngIf="tiendasOrdenadas.length > 0">
-    <ion-card-header>
-      <ion-card-title>Tiendas disponibles</ion-card-title>
-    </ion-card-header>
+      <div class="info">
+        <h1 class="title">{{ product.nombre }}</h1>
+        <a class="brand">{{ product.marca }}</a>
+      </div>
 
-    <ion-card-content>
-      <div *ngFor="let tienda of tiendasOrdenadas" class="store-item">
-        <div class="store-info">
-          <a [href]="tienda.url" target="_blank" class="store-name">{{ tienda.nombre }}</a>
-          <a [href]="tienda.url" target="_blank" class="store-price">
-            ${{ tienda.precio | number:'1.0-0' }}
-          </a>
+      <div class="best-price" *ngIf="bestOffer">
+        <div class="best-left">
+          <span class="chip check">Mejor precio encontrado</span>
+          <div class="price">${{ bestOffer.precio | number:'1.0-0' }}</div>
+        </div>
+        <button class="icon-btn circle" aria-label="Descargar reporte" (click)="downloadReport()">
+          <ion-icon name="download-outline"></ion-icon>
+        </button>
+      </div>
+    </article>
+
+    <!-- HISTORIAL -->
+    <section class="card history-card">
+      <div class="card-head">
+        <div class="head-left">
+          <ion-icon name="trending-down-outline"></ion-icon>
+          <h3>Historial de precios</h3>
         </div>
       </div>
-    </ion-card-content>
-  </ion-card>
 
+      <!-- 🔽 Filtros de fecha -->
+      <div class="history-filters">
+        <button class="chip"
+                [class.active]="filterMode === 'all'"
+                (click)="applyHistoryFilter('all')">
+          Todo
+        </button>
+
+        <button class="chip"
+                [class.active]="filterMode === 'custom'"
+                (click)="applyHistoryFilter('custom')">
+          Rango
+        </button>
+      </div>
+
+      <!-- Rango personalizado -->
+      <div class="range-row" *ngIf="filterMode === 'custom'">
+        <input type="date"
+              [(ngModel)]="rangeStart"
+              (change)="applyCustomRange()">
+        <span>–</span>
+        <input type="date"
+              [(ngModel)]="rangeEnd"
+              (change)="applyCustomRange()">
+      </div>
+
+      <div class="chart-container" *ngIf="historicoCargado; else loadingChart">
+        <canvas #priceChart height="200"></canvas>
+      </div>
+
+      <ng-template #loadingChart>
+        <div class="chart-loader">
+          <ion-spinner name="crescent"></ion-spinner>
+          <p>Cargando histórico...</p>
+        </div>
+      </ng-template>
+    </section>
+
+    <!-- DÓNDE COMPRAR -->
+    <section class="card offers-card" *ngIf="tiendasOrdenadas.length > 0">
+      <div class="card-head">
+        <div class="head-left">
+          <ion-icon name="bag-handle-outline"></ion-icon>
+          <h3>Dónde comprar</h3>
+        </div>
+      </div>
+
+      <article class="offer" *ngFor="let tienda of tiendasOrdenadas; let i = index" [ngClass]="{'best': i === 0}">
+        <div class="offer-top">
+          <div class="shop"><div class="shop-name">{{ tienda.nombre }}</div></div>
+          <div class="pill best-pill" *ngIf="i === 0">Mejor</div>
+          <div class="offer-price">${{ tienda.precio | number:'1.0-0' }}</div>
+        </div>
+        <div class="cta-row">
+          <a class="cta" [href]="tienda.url" target="_blank" rel="noopener">
+            <ion-icon name="cart-outline"></ion-icon>
+            <span>Ir a la tienda</span>
+            <ion-icon name="open-outline"></ion-icon>
+          </a>
+        </div>
+      </article>
+    </section>
+
+    <!-- PESTAÑAS -->
+    <section class="tabs-card">
+      <div class="tabs">
+        <button class="tab" [class.active]="activeInnerTab === 'desc'" (click)="setInnerTab('desc')">Descripción</button>
+        <button class="tab" [class.active]="activeInnerTab === 'reviews'" (click)="setInnerTab('reviews')">Opiniones</button>
+      </div>
+
+      <div class="tab-panel" [class.show]="activeInnerTab === 'desc'">
+        <p class="p-desc" *ngIf="product.descripcion; else noDesc">{{ product.descripcion }}</p>
+        <ng-template #noDesc><p class="p-desc">Sin descripción disponible.</p></ng-template>
+
+        <div class="features card-lite">
+          <h4>Características principales</h4>
+          <ul class="feature-list">
+            <li><ion-icon name="checkmark-outline"></ion-icon> Ingredientes de calidad</li>
+            <li><ion-icon name="checkmark-outline"></ion-icon> Buen aporte proteico</li>
+            <li><ion-icon name="checkmark-outline"></ion-icon> Sin conservantes artificiales</li>
+            <li><ion-icon name="checkmark-outline"></ion-icon> Recomendado por veterinarios</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- ...resto del archivo igual... -->
+      <div class="tab-panel" [class.show]="activeInnerTab === 'reviews'">
+        <div class="summary card-lite">
+          <div class="rating-big">
+            <div class="num">{{ avgRating | number:'1.1-1' }}</div>
+            <div class="stars" aria-label="Calificación promedio">
+              <ion-icon [name]="avgRating >= 1 ? 'star' : (avgRating >= 0.5 ? 'star-half' : 'star-outline')"></ion-icon>
+              <ion-icon [name]="avgRating >= 2 ? 'star' : (avgRating >= 1.5 ? 'star-half' : 'star-outline')"></ion-icon>
+              <ion-icon [name]="avgRating >= 3 ? 'star' : (avgRating >= 2.5 ? 'star-half' : 'star-outline')"></ion-icon>
+              <ion-icon [name]="avgRating >= 4 ? 'star' : (avgRating >= 3.5 ? 'star-half' : 'star-outline')"></ion-icon>
+              <ion-icon [name]="avgRating >= 5 ? 'star' : (avgRating >= 4.5 ? 'star-half' : 'star-outline')"></ion-icon>
+            </div>
+            <div class="small">Basado en {{ totalReviews }} opinión{{ totalReviews === 1 ? '' : 'es' }}</div>
+          </div>
+        </div>
+
+        <!-- 👇 Si NO está logueado: solo mensaje -->
+        <div class="card-lite" *ngIf="!isLoggedIn">
+          <h4>Deja tu opinión</h4>
+          <p style="margin:6px 0 10px; color:#6b7280;">
+            Debes iniciar sesión para calificar y comentar.
+          </p>
+          <button class="btn-primary" (click)="goToLogin()">Iniciar sesión</button>
+        </div>
+
+        <!-- 👇 Formulario SOLO si está logueado -->
+        <div class="form card-lite" *ngIf="isLoggedIn">
+          <h4>Deja tu opinión</h4>
+
+          <div class="row">
+            <div class="label">Tu calificación</div>
+            <div class="stars-input" role="radiogroup" aria-label="Selecciona una calificación">
+              <ion-icon *ngFor="let s of [1,2,3,4,5]"
+                        [name]="reviewRating >= s ? 'star' : 'star-outline'"
+                        (click)="setRating(s)"
+                        [attr.aria-checked]="reviewRating === s"
+                        role="radio"
+                        tabindex="0"
+                        (keydown.enter)="setRating(s)"
+                        (keydown.space)="setRating(s)"></ion-icon>
+            </div>
+          </div>
+
+          <textarea [(ngModel)]="reviewText"
+                    placeholder="Cuéntanos tu experiencia con este producto..."
+                    maxlength="800"></textarea>
+
+          <button class="btn-primary"
+                  [disabled]="isReviewInvalid"
+                  (click)="submitReview()">
+            {{ isSubmitting ? 'Enviando…' : 'Publicar opinión' }}
+          </button>
+        </div>
+
+        <!-- Lista de reseñas (siempre visible) -->
+        <div class="reviews">
+          <article class="review" *ngFor="let r of reviews">
+            <div class="rev-head">
+              <div class="user">{{ r.userName || 'Usuario' }}</div>
+              <div class="r-stars" [attr.aria-label]="'Calificación: ' + r.rating">
+                <ion-icon *ngFor="let s of [1,2,3,4,5]" [name]="r.rating >= s ? 'star' : 'star-outline'"></ion-icon>
+              </div>
+            </div>
+            <div class="rev-meta">{{ r.createdAt | date:'yyyy-MM-dd HH:mm' }}</div>
+            <p>{{ r.text }}</p>
+          </article>
+
+          <p *ngIf="!reviews?.length" class="p-desc" style="margin-top:8px;">
+            Aún no hay opiniones. ¡Sé el primero en comentar!
+          </p>
+        </div>
+      </div>
+    </section>
+  </main>
 </ion-content>
 
-<ion-footer class="ion-no-border">
-  <div class="footer-wrapper">
-    <ion-button expand="block" class="add-to-favorites-button">
-      Agregar a Favoritos
-    </ion-button>
-  </div>
-</ion-footer>
-
 <ng-template #loading>
-  <ion-spinner name="crescent"></ion-spinner>
-  <p>Cargando producto...</p>
+  <ion-content class="product-detail-page">
+    <main class="content">
+      <article class="card product-card">
+        <ion-spinner name="crescent"></ion-spinner>
+        <p style="margin-top:8px">Cargando producto...</p>
+      </article>
+    </main>
+  </ion-content>
 </ng-template>
+
+<!-- FOOTER fijo -->
+<ion-footer class="footer-tabs" slot="fixed" [translucent]="false">
+  <ion-segment [value]="activeTab" class="tabs">
+    <ion-segment-button value="home" (click)="goToHome()" [class.segment-button-checked]="activeTab==='home'">
+      <div class="tab"><ion-icon name="home-outline"></ion-icon><span class="tab-label">Inicio</span></div>
+    </ion-segment-button>
+    <ion-segment-button value="explore" (click)="goToExplore()" [class.segment-button-checked]="activeTab==='explore'">
+      <div class="tab"><ion-icon name="search-outline"></ion-icon><span class="tab-label">Explorar</span></div>
+    </ion-segment-button>
+    <ion-segment-button value="favorites" (click)="goToFavorites()" [class.segment-button-checked]="activeTab==='favorites'">
+      <div class="tab"><ion-icon name="heart-outline"></ion-icon><span class="tab-label">Favoritos</span></div>
+    </ion-segment-button>
+    <ion-segment-button value="profile" (click)="goToProfile()" [class.segment-button-checked]="activeTab==='profile'">
+      <div class="tab"><ion-icon name="person-outline"></ion-icon><span class="tab-label">Perfil</span></div>
+    </ion-segment-button>
+  </ion-segment>
+</ion-footer>

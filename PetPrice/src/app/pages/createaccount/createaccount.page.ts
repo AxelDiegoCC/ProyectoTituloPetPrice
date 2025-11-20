@@ -90,13 +90,15 @@ export class CreateaccountPage {
     return null;
   }
 
+  /** Teléfono OPCIONAL: sólo valida si hay algo escrito */
   private validatePhone(): string | null {
-    if (!this.phone) return 'Ingresa tu teléfono.';
+    if (!this.phone || this.phone.trim() === '') return null; // <-- opcional
     const digits = this.phone.replace(/\s+/g, '');
     if (!/^\+?\d{9,12}$/.test(digits)) return 'Sólo números (9–12 dígitos).';
     return null;
   }
 
+  /** Contraseña: mínimo 6 caracteres */
   private validatePassword(): string | null {
     if (!this.password) return 'Ingresa tu contraseña.';
     if (this.password.length < 6) return 'Mínimo 6 caracteres.';
@@ -140,7 +142,7 @@ export class CreateaccountPage {
     this.attemptedSubmit = true;
     this.updateNameError();
     this.updateEmailError();
-    this.updatePhoneError();
+    this.updatePhoneError();      // seguirá en null si phone está vacío
     this.updatePasswordError();
 
     if (this.nameError || this.emailError || this.phoneError || this.passwordError) {
@@ -155,7 +157,7 @@ export class CreateaccountPage {
       try { await updateProfile(userCred.user, { displayName: this.name }); }
       catch (e) { console.warn('No se pudo actualizar el perfil:', e); }
 
-      // Rol simple por dominio (igual a tu lógica actual)
+      // Rol simple por dominio
       const role = this.email === 'admin@petprice.com' ? 'admin' : 'user';
 
       const userRef = doc(this.firestore, `users/${uid}`);
@@ -163,7 +165,7 @@ export class CreateaccountPage {
         uid,
         fullName: this.name,
         email: this.email,
-        phone: this.phone,
+        phone: this.phone || null,   // <-- guarda null si está vacío
         createdAt: new Date().toISOString(),
         role,
       });

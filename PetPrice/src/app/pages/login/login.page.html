@@ -1,85 +1,82 @@
-<ion-header [translucent]="true">
-  <ion-toolbar class="colorPri icon">
-    <ion-button fill="clear" (click)="goToProducts()">
-      <ion-icon class="iconPri" slot="start" name="chevron-back-outline"></ion-icon>
-    </ion-button>
-  </ion-toolbar>
-</ion-header>
+<ion-content [fullscreen]="true" class="login-page">
+  <div class="bg-gradient"></div>
 
-<ion-content [fullscreen]="true" class="icon ion-padding">
+  <!-- WRAPPER CENTRADO -->
+  <div class="login-stack">
+    <!-- Logo -->
+    <div class="logo-wrap">
+      <div class="logo-circle">
+        <img src="\assets\img\logo.png" alt="Logo" class="logo" />
+      </div>
+    </div>
 
-  <div class="baseLabel">
-    <ion-label>
-      <h1 class="title">Pet Price</h1>
-      <img src="\assets\img\logo.png" alt="Logo" class="logo" />
-      <h2 class="subtitle">Inicio de Sesión</h2>
-    </ion-label>
+    <!-- Títulos -->
+    <h1 class="welcome">Bienvenido</h1>
+    <p class="subtitle">Compara precios y encuentra las mejores ofertas</p>
+
+    <!-- Tarjeta -->
+    <section class="card">
+      <!-- ===== Correo ===== -->
+      <label class="field-label" for="emailInput">Correo electrónico</label>
+      <div class="input">
+        <ion-icon name="mail-outline" class="leading"></ion-icon>
+        <input
+          id="emailInput"
+          type="email"
+          placeholder="tu@email.com"
+          autocomplete="email"
+          inputmode="email"
+          [(ngModel)]="email"
+          (input)="onEmailInput()"
+          (blur)="emailTouched = true; updateEmailError()"
+          [class.is-invalid]="!!emailError"
+          [attr.aria-invalid]="emailError ? 'true' : null"
+          aria-describedby="emailHelp"
+        />
+      </div>
+      <small id="emailHelp" class="hint" *ngIf="emailError">{{ emailError }}</small>
+
+      <!-- ===== Contraseña ===== -->
+      <label class="field-label" for="passwordInput">Contraseña</label>
+      <div class="input">
+        <ion-icon name="lock-closed-outline" class="leading"></ion-icon>
+        <input
+          id="passwordInput"
+          [type]="showPassword ? 'text' : 'password'"
+          placeholder="••••••"
+          autocomplete="current-password"
+          autocapitalize="off"
+          autocorrect="off"
+          [(ngModel)]="password"
+          (input)="onPasswordInput()"
+          (blur)="passwordTouched = true; updatePasswordError()"
+          [class.is-invalid]="!!passwordError"
+          [attr.aria-invalid]="passwordError ? 'true' : null"
+          aria-describedby="passwordHelp"
+        />
+        <ion-icon
+          class="trailing eye-toggle"
+          [name]="showPassword ? 'eye-off-outline' : 'eye-outline'"
+          (click)="togglePasswordVisibility()"
+          tabindex="0"
+          role="button"
+          aria-label="Mostrar u ocultar contraseña"
+        ></ion-icon>
+      </div>
+      <small id="passwordHelp" class="hint" *ngIf="passwordError">{{ passwordError }}</small>
+
+      <a class="link" (click)="goToChangePassword()">¿Olvidaste tu contraseña?</a>
+
+      <button class="btn-primary" (click)="login()">Ingresar</button>
+
+      <div class="divider"><span class="dot"></span></div>
+
+      <button class="btn-outline" (click)="goToCreateAccount()">Crear cuenta</button>
+    </section>
+
+    <!-- Términos -->
+    <p class="terms">
+      Al continuar, aceptas nuestros <a>Términos de Servicio</a> y <a>Política de Privacidad</a>
+    </p>
   </div>
-
-  <!-- ===== Correo ===== -->
-  <ion-input
-    id="emailInput"
-    class="ion-margin-top"
-    label="Correo Electrónico"
-    label-placement="floating"
-    fill="outline"
-    type="email"
-    autocomplete="email"
-    inputmode="email"
-    [class.is-invalid]="!!emailError"
-    [attr.aria-invalid]="emailError ? 'true' : null"
-    aria-describedby="emailHelp"
-    [(ngModel)]="email"
-    (ionInput)="onEmailInput()"
-    (ionBlur)="emailTouched = true; updateEmailError()">
-    <ion-icon slot="start" name="mail-outline"></ion-icon>
-  </ion-input>
-
-  <ion-note id="emailHelp" class="hint" *ngIf="emailError">{{ emailError }}</ion-note>
-
-  <!-- ===== Contraseña ===== -->
-  <ion-input
-    id="passwordInput"
-    class="ion-margin-top"
-    label="Contraseña"
-    label-placement="floating"
-    fill="outline"
-    [type]="showPassword ? 'text' : 'password'"
-    autocomplete="current-password"
-    autocapitalize="off"
-    autocorrect="off"
-    [class.is-invalid]="!!passwordError"
-    [attr.aria-invalid]="passwordError ? 'true' : null"
-    aria-describedby="passwordHelp"
-    [(ngModel)]="password"
-    (ionInput)="onPasswordInput()"
-    (ionBlur)="passwordTouched = true; updatePasswordError()">
-    <ion-icon slot="start" name="lock-closed-outline"></ion-icon>
-
-    <!-- 👁️ Ojo gris -->
-    <ion-button
-      type="button"
-      slot="end"
-      fill="clear"
-      class="eye-toggle"
-      (click)="togglePasswordVisibility()"
-      aria-label="Mostrar u ocultar contraseña">
-      <ion-icon [name]="showPassword ? 'eye-off-outline' : 'eye-outline'"></ion-icon>
-    </ion-button>
-  </ion-input>
-
-  <ion-note id="passwordHelp" class="hint" *ngIf="passwordError">{{ passwordError }}</ion-note>
-
-  <div class="baseBtn">
-    <ion-button class="btnPri ion-margin-top" (click)="login()">Ingresar</ion-button>
-
-    <ion-button class="btnSec" expand="block" fill="outline" (click)="goToChangePassword()">
-      Olvidé mi Contraseña
-    </ion-button>
-
-    <ion-button class="btnTer ion-margin-top" fill="clear" (click)="goToCreateAccount()">
-      ¿No tienes cuenta?
-    </ion-button>
-  </div>
-
 </ion-content>

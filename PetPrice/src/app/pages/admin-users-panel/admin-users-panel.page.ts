@@ -1,32 +1,16 @@
 import { Component } from '@angular/core';
-import {
-  IonicModule,
-  ToastController,
-  AlertController,
-  ActionSheetController,
-  ModalController
-} from '@ionic/angular';
+import { IonicModule, ToastController } from '@ionic/angular';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+
 import {
-  Firestore,
-  collection,
-  query,
-  orderBy as fbOrderBy,
-  limit,
-  startAfter,
-  getDocs,
-  DocumentData,
-  doc,
-  getDoc,
-  updateDoc,
-  deleteDoc,
-  setDoc
+  Firestore, collection, query, orderBy as fbOrderBy, limit, startAfter, getDocs,
+  DocumentData, doc, getDoc, updateDoc, deleteDoc, setDoc, getCountFromServer
 } from '@angular/fire/firestore';
-import { Auth, updateProfile } from '@angular/fire/auth';
-import { initializeApp, FirebaseApp, getApps } from 'firebase/app';
-import { deleteApp } from 'firebase/app';
+import { Auth } from '@angular/fire/auth';
+
+import { initializeApp, FirebaseApp, getApps, deleteApp } from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword as createUserTemp } from 'firebase/auth';
 
 type UserDoc = {
@@ -37,6 +21,9 @@ type UserDoc = {
   role?: 'admin' | 'user';
   createdAt?: string | number;
 };
+
+type ModalKind = 'create' | 'edit' | 'delete' | null;
+type Tab = 'home' | 'explore' | 'favorites' | 'profile';
 
 @Component({
   standalone: true,
@@ -54,13 +41,21 @@ export class AdminUsersPanelPage {
   lastDocSnap: any = null;
   hasMore = true;
 
-  activeTab: 'search' | 'favorites' | 'profile' = 'profile';
+  activeTab: Tab = 'explore';
 
-  addUserModalOpen = false;
-  showPassword = false;
-  newUser = { name: '', email: '', phone: '', password: '' };
+  modal: ModalKind = null;
+  selectedUser: UserDoc | null = null;
 
-  // 🔹 Configuración Firebase principal (reusa tu config real)
+  createForm = { name: '', email: '', phone: '', password: '' };
+  editForm   = { id: '', name: '', email: '', phone: '' };
+
+  creating = false;
+  saving   = false;
+  deleting = false;
+
+  totalLabel = 'Cargando...';
+  orderLabel = 'Recientes';
+
   firebaseConfig = {
     apiKey: "AIzaSyBltot7EHGTlW6zxzLjRUWx6dEmoE5hKpw",
     authDomain: "petprice-99c09.firebaseapp.com",
@@ -75,17 +70,32 @@ export class AdminUsersPanelPage {
     private router: Router,
     private auth: Auth,
     private toastCtrl: ToastController,
-    private alertCtrl: AlertController,
-    private actionSheetCtrl: ActionSheetController,
-    private modalController: ModalController
   ) {}
 
-  ionViewWillEnter() {
+  async ionViewWillEnter() {
     this.activeTab = 'profile';
+    await this.reload();
+    await this.updateTotalLabel();
+  }
+
+  private async updateTotalLabel() {
+    try {
+      const cnt = await getCountFromServer(collection(this.fs, 'users'));
+      const n = cnt.data().count || 0;
+      this.totalLabel = `${n} usuario${n === 1 ? '' : 's'} registrado${n === 1 ? '' : 's'}`;
+    } catch {
+      this.totalLabel = `${this.users.length} usuarios listados`;
+    }
+  }
+
+  cycleOrder() {
+    this.orderBy = this.orderBy === 'createdAt' ? 'fullName' :
+                   this.orderBy === 'fullName'  ? 'email' : 'createdAt';
+    this.orderLabel = this.orderBy === 'createdAt' ? 'Recientes' :
+                      this.orderBy === 'fullName'  ? 'Nombre'    : 'Correo';
     this.reload();
   }
 
-  // ===== Cargar usuarios =====
   async reload() {
     this.users = [];
     this.lastDocSnap = null;
@@ -121,123 +131,52 @@ export class AdminUsersPanelPage {
 
   async refresh(ev: any) {
     await this.reload();
+    await this.updateTotalLabel();
     ev?.target?.complete();
   }
 
+  private searchTimer?: any;
   onSearch() {
-    this.reload();
+    clearTimeout(this.searchTimer);
+    this.searchTimer = setTimeout(() => this.reload(), 150);
   }
 
-  // ========= Editar usuario =========
-  async editUser(u: UserDoc) {
-    const alert = await this.alertCtrl.create({
-      header: 'Editar usuario',
-      inputs: [
-        { name: 'fullName', type: 'text', value: u.fullName || '', placeholder: 'Nombre completo' },
-        { name: 'email', type: 'email', value: u.email, placeholder: 'Correo' },
-        { name: 'phone', type: 'text', value: u.phone || '', placeholder: 'Teléfono' }
-      ],
-      buttons: [
-        { text: 'Cancelar', role: 'cancel' },
-        {
-          text: 'Guardar',
-          handler: async (values: any) => {
-            const payload = {
-              fullName: (values.fullName ?? '').trim(),
-              email: (values.email ?? '').trim(),
-              phone: (values.phone ?? '').trim()
-            };
-
-            if (!payload.email || !payload.email.includes('@')) {
-              this.presentToast('Correo inválido', 'danger');
-              return false;
-            }
-            if (payload.phone && !/^\+?\d[\d\s-]{7,}$/.test(payload.phone)) {
-              this.presentToast('Teléfono inválido', 'danger');
-              return false;
-            }
-
-            try {
-              await updateDoc(doc(this.fs, 'users', u.uid), payload);
-
-              const idx = this.users.findIndex(x => x.uid === u.uid);
-              if (idx >= 0) this.users[idx] = { ...this.users[idx], ...payload };
-
-              this.presentToast('Usuario actualizado', 'primary');
-              return true;
-            } catch (e) {
-              console.error(e);
-              this.presentToast('No se pudo actualizar', 'danger');
-              return false;
-            }
-          }
-        }
-      ]
-    });
-
-    await alert.present();
+  openCreate() {
+    this.modal = 'create';
+    this.creating = false;
+    this.createForm = { name: '', email: '', phone: '', password: '' };
   }
 
-  // ========= Borrar usuario =========
-  async confirmDeleteUser(u: UserDoc) {
-    const currentUid = this.auth.currentUser?.uid;
-    if (currentUid === u.uid) {
+  openEdit(u: UserDoc) {
+    this.modal = 'edit';
+    this.selectedUser = u;
+    this.saving = false;
+    this.editForm = { id: u.uid, name: u.fullName || '', email: u.email, phone: u.phone || '' };
+  }
+
+  openDelete(u: UserDoc) {
+    if (this.auth.currentUser?.uid === u.uid) {
       this.presentToast('No puedes eliminar tu propia cuenta desde aquí.', 'danger');
       return;
     }
-
-    const sheet = await this.actionSheetCtrl.create({
-      header: `Eliminar a ${u.fullName || u.email}?`,
-      subHeader: 'Esto eliminará su documento en Firestore. La cuenta de Auth NO se elimina.',
-      buttons: [
-        {
-          text: 'Eliminar',
-          icon: 'trash-outline',
-          cssClass: 'delete-circle-btn',
-          handler: async () => {
-            try {
-              await deleteDoc(doc(this.fs, 'users', u.uid));
-              this.users = this.users.filter(x => x.uid !== u.uid);
-              this.presentToast('Usuario eliminado (Firestore)', 'primary');
-            } catch (e) {
-              console.error(e);
-              this.presentToast('No se pudo eliminar', 'danger');
-            }
-          }
-        },
-        { text: 'Cancelar', role: 'cancel', icon: 'close-outline' }
-      ]
-    });
-
-    await sheet.present();
+    this.modal = 'delete';
+    this.selectedUser = u;
+    this.deleting = false;
   }
 
-  // ========= Agregar usuario =========
-  openAddUserModal() {
-    this.resetNewUser();
-    this.addUserModalOpen = true;
+  closeModals() {
+    this.modal = null;
+    this.selectedUser = null;
   }
 
-  closeAddUserModal() {
-    this.addUserModalOpen = false;
-    this.resetNewUser();
-  }
-
-  private resetNewUser() {
-    this.newUser = { name: '', email: '', phone: '', password: '' };
-    this.showPassword = false;
-  }
-
-  async addUser() {
-    const { name, email, phone, password } = this.newUser;
-
-    if (!name || !email || !phone || !password) {
-      this.presentToast('Completa todos los campos', 'danger');
-      return;
+  async createUser() {
+    const { name, email, phone, password } = this.createForm;
+    if (!name || !email || !password) {
+      this.presentToast('Completa nombre, correo y contraseña', 'danger'); return;
     }
-
     try {
-      // 🔹 Crear usuario en app temporal para no afectar la sesión actual
+      this.creating = true;
+
       const tempAppName = 'TempApp';
       let tempApp: FirebaseApp;
       if (!getApps().some(a => a.name === tempAppName)) {
@@ -247,54 +186,107 @@ export class AdminUsersPanelPage {
       }
       const tempAuth = getAuth(tempApp);
 
-      const userCred = await createUserTemp(tempAuth, email, password);
-      const uid = userCred.user.uid;
+      const cred = await createUserTemp(tempAuth, email.trim(), password);
+      const uid = cred.user.uid;
 
-      // Guardar en Firestore
       await setDoc(doc(this.fs, `users/${uid}`), {
         uid,
-        fullName: name,
-        email,
-        phone,
+        fullName: name.trim(),
+        email: email.trim(),
+        phone: (phone || '').trim(),
         role: 'user',
         createdAt: new Date().toISOString()
       });
 
-      this.presentToast('Usuario agregado con éxito', 'primary');
-      this.closeAddUserModal();
+      this.presentToast('Usuario agregado con éxito', 'success');
+      this.closeModals();
       await this.reload();
-
-      // 🔹 Borrar app temporal
-      deleteApp(tempApp);
-
+      await this.updateTotalLabel();
+      await deleteApp(tempApp);
     } catch (err: any) {
       console.error(err);
-      this.presentToast(err.message || 'Error al agregar usuario', 'danger');
+      this.presentToast(err?.message || 'Error al agregar usuario', 'danger');
+    } finally {
+      this.creating = false;
     }
   }
 
-  // ========= Navegación footer =========
-  async goToProducts() {
-    await this.router.navigate(['/products']);
+  async updateUser() {
+    if (!this.editForm.id) return;
+    try {
+      this.saving = true;
+      const payload = {
+        fullName: (this.editForm.name || '').trim(),
+        email: (this.editForm.email || '').trim(),
+        phone: (this.editForm.phone || '').trim()
+      };
+      await updateDoc(doc(this.fs, 'users', this.editForm.id), payload);
+
+      const i = this.users.findIndex(u => u.uid === this.editForm.id);
+      if (i >= 0) this.users[i] = { ...this.users[i], ...payload };
+
+      this.presentToast('Cambios guardados', 'primary');
+      this.closeModals();
+    } catch (e) {
+      console.error(e);
+      this.presentToast('No se pudo actualizar', 'danger');
+    } finally {
+      this.saving = false;
+    }
   }
 
-  async goToFavorites() {
-    await this.router.navigate(['/favorites']);
+  async confirmDelete() {
+    if (!this.selectedUser) return;
+    try {
+      this.deleting = true;
+      await deleteDoc(doc(this.fs, 'users', this.selectedUser.uid));
+      this.users = this.users.filter(x => x.uid !== this.selectedUser!.uid);
+      this.presentToast('Usuario eliminado', 'primary');
+      this.closeModals();
+      await this.updateTotalLabel();
+    } catch (e) {
+      console.error(e);
+      this.presentToast('No se pudo eliminar', 'danger');
+    } finally {
+      this.deleting = false;
+    }
   }
 
+  avatarFor(_u: UserDoc) { return 'assets/img/foto-perfil.png'; }
+
+  sinceLabel(createdAt?: string | number) {
+    if (!createdAt) return '—';
+    const d = new Date(createdAt);
+    const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+    return `${meses[d.getMonth()]} ${d.getFullYear()}`;
+  }
+
+  // ===== Navegación header/footer =====
+  async goBack() {
+    // Volver siempre al panel de administrador
+    this.activeTab = 'profile';
+    await this.safeNavigate('/admin-panel');
+  }
+
+  async goToHome()      { this.activeTab = 'home';      await this.safeNavigate('/home'); }
+  async goToExplore()   { this.activeTab = 'explore';   await this.safeNavigate('/products'); }
+  async goToFavorites() { this.activeTab = 'favorites'; await this.safeNavigate('/favorites'); }
   async goToProfile() {
     const user = this.auth.currentUser;
-    if (!user) {
-      await this.router.navigate(['/login']);
-      return;
-    }
+    if (!user) { this.activeTab = 'profile'; await this.safeNavigate('/login'); return; }
     const snap = await getDoc(doc(this.fs, 'users', user.uid));
     const role = snap.exists() ? ((snap.data() as any).role || 'user') : 'user';
-    const target = role === 'admin' ? '/admin-panel' : '/profile';
-    await this.router.navigate([target]);
+    this.activeTab = 'profile';
+    await this.safeNavigate(role === 'admin' ? '/admin-panel' : '/profile');
   }
 
-  // ========= Utils =========
+  private async safeNavigate(target: string) {
+    const current = this.router.url.split('?')[0].split('#')[0];
+    if (current !== target) {
+      await this.router.navigate([target]);
+    }
+  }
+
   private async presentToast(message: string, color: 'primary' | 'danger' | 'success' = 'primary') {
     const toast = await this.toastCtrl.create({ message, duration: 2200, color });
     await toast.present();

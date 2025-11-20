@@ -5,7 +5,7 @@ export const routes: Routes = [
 
   {
     path: '',
-    redirectTo: 'products',
+    redirectTo: 'home',
     pathMatch: 'full',
   },
     {
@@ -47,5 +47,13 @@ export const routes: Routes = [
   {
     path: 'admin-products-panel',
     loadComponent: () => import('./pages/admin-products-panel/admin-products-panel.page').then( m => m.AdminProductsPanelPage)
+  },
+  {
+    path: 'home',
+    loadComponent: () => import('./pages/home/home.page').then( m => m.HomePage)
+  },
+  {
+    path: 'configurations',
+    loadComponent: () => import('./pages/configurations/configurations.page').then( m => m.ConfigurationsPage)
   },
 ];

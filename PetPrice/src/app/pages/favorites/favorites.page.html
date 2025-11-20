@@ -1,114 +1,92 @@
-<ion-header [translucent]="true">
-  <ion-toolbar class="colorPri icon toolbar-flex">
-    <div class="title-container">
-      <ion-title>Mis Favoritos</ion-title>
+<ion-content [fullscreen]="true" class="favorites-page products-page">
+  <!-- HEADER (misma estructura .hero que Products, con corazón) -->
+  <header class="hero">
+    <div class="hero-bg"></div>
+    <div class="hero-inner">
+      <div class="hero-row">
+        <div class="hero-icon">
+          <ion-icon name="heart"></ion-icon>
+        </div>
+        <div class="hero-text">
+          <h1 class="hero-title">Mis Favoritos</h1>
+          <p class="hero-sub">
+            {{ favorites.length }} producto{{ favorites.length===1 ? '' : 's' }} guardado{{ favorites.length===1 ? '' : 's' }}
+          </p>
+        </div>
+      </div>
     </div>
-  </ion-toolbar>
-</ion-header>
+  </header>
 
-<ion-content [fullscreen]="true">
+  <!-- CONTROLES (mismo wrapper que Products) -->
+  <section class="controls">
+    <div class="left">
+      {{ favorites.length }} producto{{ favorites.length===1 ? '' : 's' }} encontrados
+    </div>
+    <div class="right"><!-- reservado para futuros botones --></div>
+  </section>
 
-  <ion-card button="true" class="basePro">
-    <ion-card-content>
-      <ion-grid>
-        <ion-row>
-          <ion-col size="4">
-            <img src="assets/img/eje1.webp" alt="img" />
-          </ion-col>
-          <ion-col size="8">
-            <ion-card-title>Champion Cat - 15kg</ion-card-title>
-            <ion-card-subtitle>$10.990</ion-card-subtitle>
-            <div class="icon-container">
-              <ion-button fill="clear" size="small" color="dark">
-                <ion-icon name="heart-outline"></ion-icon>
-              </ion-button>
-            </div>
-          </ion-col>
-        </ion-row>
-      </ion-grid>
-    </ion-card-content>
-  </ion-card>
-  <ion-card button="true" class="basePro">
-    <ion-card-content>
-      <ion-grid>
-        <ion-row>
-          <ion-col size="4">
-            <img src="assets/img/eje1.webp" alt="img" />
-          </ion-col>
-          <ion-col size="8">
-            <ion-card-title>Champion Dog - 25kg</ion-card-title>
-            <ion-card-subtitle>$24.990</ion-card-subtitle>
-            <div class="icon-container">
-              <ion-button fill="clear" size="small" color="dark">
-                <ion-icon name="heart-outline"></ion-icon>
-              </ion-button>
-            </div>
-          </ion-col>
-        </ion-row>
-      </ion-grid>
-    </ion-card-content>
-  </ion-card>
-  <ion-card button="true" class="basePro">
-    <ion-card-content>
-      <ion-grid>
-        <ion-row>
-          <ion-col size="4">
-            <img src="assets/img/eje1.webp" alt="img" />
-          </ion-col>
-          <ion-col size="8">
-            <ion-card-title>Champion Dog - 5kg</ion-card-title>
-            <ion-card-subtitle>$15.990</ion-card-subtitle>
-            <div class="icon-container">
-              <ion-button fill="clear" size="small" color="dark">
-                <ion-icon name="heart-outline"></ion-icon>
-              </ion-button>
-            </div>
-          </ion-col>
-        </ion-row>
-      </ion-grid>
-    </ion-card-content>
-  </ion-card>
-    <ion-card button="true" class="basePro">
-    <ion-card-content>
-      <ion-grid>
-        <ion-row>
-          <ion-col size="4">
-            <img src="assets/img/eje1.webp" alt="img" />
-          </ion-col>
-          <ion-col size="8">
-            <ion-card-title>Champion Dog - 5kg</ion-card-title>
-            <ion-card-subtitle>$15.990</ion-card-subtitle>
-            <div class="icon-container">
-              <ion-button fill="clear" size="small" color="dark">
-                <ion-icon name="heart-outline"></ion-icon>
-              </ion-button>
-            </div>
-          </ion-col>
-        </ion-row>
-      </ion-grid>
-    </ion-card-content>
-  </ion-card>
+  <!-- LISTA -->
+  <section class="list" *ngIf="favorites.length > 0; else emptyFavs">
+    <article class="card" *ngFor="let p of favorites; trackBy: trackById" (click)="openProduct(p)">
+      <div class="thumb">
+        <img [src]="p.image || 'assets/img/eje1.webp'" [alt]="p.title" />
+      </div>
 
-    <ion-button class="btn-float" expand="block">
-      Obtener Pantallazo
-    </ion-button>
+      <div class="body">
+        <div class="row-top">
+          <span class="brand">{{ (p.brand || '').toUpperCase() }}</span>
+        </div>
+        <h2 class="title">{{ p.title }}</h2>
+
+        <div class="rating">
+          <div class="stars" aria-label="Calificación promedio">
+            <ion-icon *ngFor="let s of [1,2,3,4,5]" [name]="starName(p.ratingAvg, s)"></ion-icon>
+          </div>
+          <span class="score">({{ p.ratingAvg | number:'1.1-1' }})</span>
+        </div>
+
+        <div class="price-row">
+          <div class="price">{{ p.price | currency:'$':'symbol':'1.0-0' }}</div>
+          <button class="fav" type="button" aria-label="Favorito"
+                  [attr.aria-pressed]="p.isFav"
+                  (click)="$event.stopPropagation(); toggleFavorite(p)">
+            <ion-icon [name]="p.isFav ? 'heart' : 'heart-outline'"></ion-icon>
+          </button>
+        </div>
+
+        <div class="meta" *ngIf="p.tiendasCount > 0">
+          en {{ p.tiendasCount }} tienda{{ p.tiendasCount>1?'s':'' }}
+        </div>
+      </div>
+    </article>
+  </section>
+
+  <!-- EMPTY STATE con corazón + mensajes -->
+  <ng-template #emptyFavs>
+    <section class="empty-state">
+      <div class="empty-icon">
+        <ion-icon name="heart-outline"></ion-icon>
+      </div>
+      <h2 class="empty-title">No tienes favoritos</h2>
+      <p class="empty-subtitle">Agrega productos a favoritos para verlos aquí</p>
+    </section>
+  </ng-template>
 </ion-content>
 
-<ion-footer slot="fixed" [translucent]="true" class="footer-fixed">
-  <ion-segment [value]="activeTab">
-    <ion-segment-button value="search" (click)="goToProducts()">
-      <ion-label>Buscar</ion-label>
-      <ion-icon name="search-outline"></ion-icon>
+<!-- FOOTER idéntico a Products -->
+<ion-footer class="footer-tabs" slot="fixed" [translucent]="false">
+  <ion-segment [value]="activeTab" class="tabs">
+    <ion-segment-button value="home" (click)="goToHome()" [class.segment-button-checked]="activeTab === 'home'">
+      <div class="tab"><ion-icon name="home-outline"></ion-icon><span class="tab-label">Inicio</span></div>
     </ion-segment-button>
-
-    <ion-segment-button value="favorites">
-      <ion-label>Favoritos</ion-label>
-      <ion-icon name="star-outline"></ion-icon>
+    <ion-segment-button value="explore" (click)="goToExplore()" [class.segment-button-checked]="activeTab === 'explore'">
+      <div class="tab"><ion-icon name="search-outline"></ion-icon><span class="tab-label">Explorar</span></div>
     </ion-segment-button>
-
-    <ion-segment-button value="profile" (click)="goToProfile()">
-      <ion-label>Perfil</ion-label>
-      <ion-icon name="person-outline"></ion-icon>
+    <ion-segment-button value="favorites" (click)="goToFavorites()" [class.segment-button-checked]="activeTab === 'favorites'">
+      <div class="tab has-badge"><ion-icon name="heart-outline"></ion-icon><span class="tab-label">Favoritos</span></div>
+    </ion-segment-button>
+    <ion-segment-button value="profile" (click)="goToProfile()" [class.segment-button-checked]="activeTab === 'profile'">
+      <div class="tab"><ion-icon name="person-outline"></ion-icon><span class="tab-label">Perfil</span></div>
     </ion-segment-button>
   </ion-segment>
 </ion-footer>

@@ -2,7 +2,7 @@ import { Component } from '@angular/core';
 import { IonicModule, ToastController } from '@ionic/angular';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, ActivatedRoute } from '@angular/router';
 import { Auth, signInWithEmailAndPassword, signOut } from '@angular/fire/auth';
 import { Firestore, doc, getDoc } from '@angular/fire/firestore';
 import { UserService } from 'src/app/services/User.Service';
@@ -38,6 +38,7 @@ export class LoginPage {
     private firestore: Firestore,
     private userService: UserService,
     private router: Router,
+    private route: ActivatedRoute,     // ⬅️ para leer returnUrl
     private toastCtrl: ToastController
   ) {}
 
@@ -58,13 +59,8 @@ export class LoginPage {
     clearTimeout(this.passwordDebounce);
   }
 
-  ionViewWillEnter() {
-    this.resetForm();
-  }
-
-  ionViewDidLeave() {
-    this.resetForm();
-  }
+  ionViewWillEnter() { this.resetForm(); }
+  ionViewDidLeave() { this.resetForm(); }
 
   // ===== Validaciones =====
   private validateEmail(): string | null {
@@ -105,7 +101,6 @@ export class LoginPage {
     this.attemptedSubmit = true;
     this.updateEmailError();
     this.updatePasswordError();
-
     if (this.emailError || this.passwordError) return;
 
     try {
@@ -117,7 +112,6 @@ export class LoginPage {
 
       // 🔒 Verificar si el documento del usuario existe en Firestore
       if (!userDoc.exists()) {
-        // El documento fue eliminado: cerramos sesión y bloqueamos acceso
         await signOut(this.auth);
         this.showToast('Tu cuenta ha sido eliminada o deshabilitada.');
         return;
@@ -128,7 +122,13 @@ export class LoginPage {
       const role = (userDoc.data() as any)['role'] || 'user';
 
       this.showToast('Inicio de sesión exitoso');
-      this.router.navigate([role === 'admin' ? '/admin-panel' : '/profile']);
+
+      // ⬇️ Redirección respetando returnUrl y evitando dejar /login en el historial
+      const returnUrl = this.route.snapshot.queryParamMap.get('returnUrl');
+      const fallback = role === 'admin' ? '/admin-panel' : '/profile';
+      const target = returnUrl || fallback;
+
+      await this.router.navigate([target], { replaceUrl: true });
     } catch (err: any) {
       console.error(err);
       const code = err?.code as string | undefined;

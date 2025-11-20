@@ -1,128 +1,312 @@
-<ion-header [translucent]="true">
-  <ion-toolbar class="colorPri icon toolbar-flex">
-    <ion-buttons slot="start">
-      <ion-back-button defaultHref="/admin-panel"></ion-back-button>
-    </ion-buttons>
-    <div class="title-container">
-      <ion-title>Productos</ion-title>
+<ion-content [fullscreen]="true" class="admin-products-page" [class.modal-open]="modal !== null">
+  <!-- HEADER (no fijo) -->
+  <header class="ap-hero">
+    <div class="ap-hero-bg"></div>
+
+    <div class="ap-hero-inner">
+      <!-- Barra superior: back ← | título | + Nuevo -->
+      <div class="ap-hero-bar">
+        <button class="ap-hbtn back" aria-label="Volver" (click)="goBack()">
+          <ion-icon name="arrow-back-outline"></ion-icon>
+        </button>
+
+        <div class="ap-hero-headings">
+          <h1 class="ap-hero-title">Gestionar Productos</h1>
+          <span class="ap-hero-small">{{ totalLabel }}</span>
+        </div>
+
+        <button class="ap-hbtn primary" aria-label="Nuevo producto" (click)="openCreate()">
+          <ion-icon name="add"></ion-icon><span>Nuevo</span>
+        </button>
+      </div>
+
+      <!-- Buscador -->
+      <div class="ap-search">
+        <ion-icon name="search-outline"></ion-icon>
+        <input type="text" placeholder="Buscar productos..." [(ngModel)]="search" (input)="onSearch()" />
+      </div>
     </div>
-  </ion-toolbar>
-</ion-header>
+  </header>
 
-<ion-content [fullscreen]="true" class="ion-padding">
-  <ion-searchbar
-    placeholder="Buscar por nombre o marca"
-    [(ngModel)]="search"
-    (ionInput)="onSearch()">
-  </ion-searchbar>
+  <!-- CONTROLES (opcional) -->
+  <section class="ap-controls">
+    <div class="ap-left">{{ products.length }} productos listados</div>
+    <div class="ap-right">
+      <button class="ap-btn-icon" aria-label="Ordenar" (click)="cycleOrder()">
+        <ion-icon name="swap-vertical-outline"></ion-icon>
+      </button>
+      <button class="ap-btn-chip" (click)="cycleOrder()">
+        <ion-icon name="options-outline"></ion-icon>
+        <span>Orden: {{ orderLabel }}</span>
+      </button>
+    </div>
+  </section>
 
-  <ion-list inset="true">
-    <ion-item-sliding *ngFor="let p of products; let i = index">
-      <ion-item lines="none">
-        <ion-thumbnail slot="start">
-          <img [src]="p.imagen" />
-        </ion-thumbnail>
+  <!-- LISTA -->
+  <section class="ap-list">
+    <article class="ap-card" *ngFor="let p of products">
+      <div class="ap-thumb">
+        <img [src]="p.imagen || placeholder" [alt]="p.nombre" />
+      </div>
 
-        <ion-label>
-          <h3>{{ p.nombre }}</h3>
-          <p>Marca: {{ p.marca || '—' }}</p>
-          <ion-note>Precio: ${{ p.precio_minimo | number:'1.0-0' }}</ion-note>
-        </ion-label>
-      </ion-item>
+      <div class="ap-body">
+        <h3 class="ap-name">{{ p.nombre }}</h3>
+        <div class="ap-brand">{{ p.marca || '—' }}</div>
+        <div class="ap-price">{{ p.precio_minimo ? ('$' + (p.precio_minimo | number:'1.0-0')) : '—' }}</div>
+      </div>
 
-      <ion-item-options side="end">
-        <!-- Editar producto con AlertController -->
-        <ion-item-option (click)="editProduct(p)" expandable
-          style="display: flex; justify-content: center; align-items: center; background: transparent;">
-          <ion-button fill="solid" color="primary" shape="round" size="small">
-            <ion-icon name="create-outline"></ion-icon>
-          </ion-button>
-        </ion-item-option>
+      <div class="ap-actions">
+        <button type="button" class="ap-btn ap-btn--edit" (click)="openEdit(p)">
+          <ion-icon name="create-outline"></ion-icon> Editar
+        </button>
+        <button type="button" class="ap-btn ap-btn--delete" (click)="openDelete(p)">
+          <ion-icon name="trash-outline"></ion-icon> Eliminar
+        </button>
+      </div>
+    </article>
+  </section>
 
-        <ion-item-option (click)="confirmDeleteProduct(p)" expandable
-          style="display: flex; justify-content: center; align-items: center; background: transparent;">
-          <ion-button fill="solid" color="danger" shape="round" size="small">
-            <ion-icon name="trash-outline"></ion-icon>
-          </ion-button>
-        </ion-item-option>
-      </ion-item-options>
-    </ion-item-sliding>
-  </ion-list>
+  <!-- REFRESH / INFINITE -->
+  <ion-refresher slot="fixed" (ionRefresh)="refresh($event)">
+    <ion-refresher-content></ion-refresher-content>
+  </ion-refresher>
+  <ion-infinite-scroll threshold="120px" (ionInfinite)="loadMore($event)" *ngIf="hasMore">
+    <ion-infinite-scroll-content loadingSpinner="crescent"></ion-infinite-scroll-content>
+  </ion-infinite-scroll>
+
+  <!-- ===== Overlay ===== -->
+  <div class="overlay" *ngIf="modal" (click)="closeModals()"></div>
+
+  <!-- ===== MODAL: NUEVO ===== -->
+  <div class="dialog" *ngIf="modal==='create'">
+    <div class="dialog-head">
+      <h3>Agregar nuevo producto</h3>
+      <button class="x" (click)="closeModals()" aria-label="Cerrar">
+        <ion-icon name="close-outline"></ion-icon>
+      </button>
+    </div>
+    <p class="dialog-sub">Completa los datos del producto</p>
+
+    <form (ngSubmit)="createProduct()" autocomplete="off">
+
+      <label class="f-label">Nombre</label>
+      <div class="field">
+        <ion-icon name="pricetag-outline"></ion-icon>
+        <input type="text" [(ngModel)]="createForm.nombre" name="c_nombre" required />
+      </div>
+
+      <label class="f-label">Marca</label>
+      <div class="field">
+        <ion-icon name="storefront-outline"></ion-icon>
+        <input type="text" [(ngModel)]="createForm.marca" name="c_marca" required />
+      </div>
+
+      <label class="f-label">Categoría</label>
+      <!-- Chips Perro/Gato -->
+      <div class="choice-chips" role="radiogroup" aria-label="Categoría">
+        <button type="button"
+                class="chip"
+                [class.active]="createForm.categoria==='Perro'"
+                role="radio"
+                [attr.aria-checked]="createForm.categoria==='Perro'"
+                (click)="setCategory('create','Perro')">
+          🐶 <span>Perro</span>
+        </button>
+        <button type="button"
+                class="chip"
+                [class.active]="createForm.categoria==='Gato'"
+                role="radio"
+                [attr.aria-checked]="createForm.categoria==='Gato'"
+                (click)="setCategory('create','Gato')">
+          🐱 <span>Gato</span>
+        </button>
+      </div>
+
+      <label class="f-label">Descripción</label>
+      <div class="field">
+        <ion-icon name="document-text-outline"></ion-icon>
+        <input type="text" [(ngModel)]="createForm.descripcion" name="c_desc" placeholder="(opcional)" />
+      </div>
+
+      <label class="f-label">URL Imagen</label>
+      <div class="field">
+        <ion-icon name="image-outline"></ion-icon>
+        <input type="url" [(ngModel)]="createForm.imagen" name="c_img" placeholder="https://…" />
+      </div>
+
+      <!-- TIENDAS -->
+      <div class="stores-header">
+        <label class="f-label">Tiendas *</label>
+        <button type="button" class="add-store-btn" (click)="addStore('create')">
+          <ion-icon name="add-outline"></ion-icon> Agregar tienda
+        </button>
+      </div>
+
+      <div class="store-group" *ngFor="let t of createForm.tiendas; let i = index">
+        <div class="store-group-head">
+          <span class="store-title">Tienda {{ i + 1 }}</span>
+          <button type="button" class="remove-store" (click)="removeStore('create', i)" *ngIf="createForm.tiendas.length > 1">
+            <ion-icon name="close-outline"></ion-icon>
+          </button>
+        </div>
+
+        <div class="field small">
+          <ion-icon name="bag-handle-outline"></ion-icon>
+          <input type="text" [(ngModel)]="t.nombre" name="c_tienda_nombre{{i}}" placeholder="Nombre tienda" required />
+        </div>
+
+        <div class="field small">
+          <ion-icon name="link-outline"></ion-icon>
+          <input type="url" [(ngModel)]="t.url" name="c_tienda_url{{i}}" placeholder="URL (opcional)" />
+        </div>
+
+        <div class="field small">
+          <ion-icon name="cash-outline"></ion-icon>
+          <input type="number" inputmode="decimal" min="0" step="0.01"
+                 [(ngModel)]="t.precio" name="c_tienda_precio{{i}}" placeholder="Precio" required />
+        </div>
+      </div>
+
+      <div class="dialog-footer">
+        <button class="btn btn-grad" type="submit" [disabled]="creating">
+          {{ creating ? 'Guardando…' : 'Agregar producto' }}
+        </button>
+        <button class="btn btn-ghost" type="button" (click)="closeModals()">Cancelar</button>
+      </div>
+
+    </form>
+  </div>
+
+  <!-- ===== MODAL: EDITAR ===== -->
+  <div class="dialog" *ngIf="modal==='edit'">
+    <div class="dialog-head">
+      <h3>Editar producto</h3>
+      <button class="x" (click)="closeModals()" aria-label="Cerrar">
+        <ion-icon name="close-outline"></ion-icon>
+      </button>
+    </div>
+    <p class="dialog-sub">Modifica los datos del producto</p>
+
+    <form (ngSubmit)="updateProduct()" autocomplete="off">
+
+      <label class="f-label">Nombre</label>
+      <div class="field">
+        <ion-icon name="pricetag-outline"></ion-icon>
+        <input type="text" [(ngModel)]="editForm.nombre" name="e_nombre" required />
+      </div>
+
+      <label class="f-label">Marca</label>
+      <div class="field">
+        <ion-icon name="storefront-outline"></ion-icon>
+        <input type="text" [(ngModel)]="editForm.marca" name="e_marca" required />
+      </div>
+
+      <label class="f-label">Categoría</label>
+      <div class="choice-chips" role="radiogroup" aria-label="Categoría">
+        <button type="button"
+                class="chip"
+                [class.active]="editForm.categoria==='Perro'"
+                role="radio"
+                [attr.aria-checked]="editForm.categoria==='Perro'"
+                (click)="setCategory('edit','Perro')">
+          🐶 <span>Perro</span>
+        </button>
+        <button type="button"
+                class="chip"
+                [class.active]="editForm.categoria==='Gato'"
+                role="radio"
+                [attr.aria-checked]="editForm.categoria==='Gato'"
+                (click)="setCategory('edit','Gato')">
+          🐱 <span>Gato</span>
+        </button>
+      </div>
+
+      <label class="f-label">Descripción</label>
+      <div class="field">
+        <ion-icon name="document-text-outline"></ion-icon>
+        <input type="text" [(ngModel)]="editForm.descripcion" name="e_desc" placeholder="(opcional)" />
+      </div>
+
+      <label class="f-label">URL Imagen</label>
+      <div class="field">
+        <ion-icon name="image-outline"></ion-icon>
+        <input type="url" [(ngModel)]="editForm.imagen" name="e_img" placeholder="https://…" />
+      </div>
+
+      <div class="stores-header">
+        <label class="f-label">Tiendas *</label>
+        <button type="button" class="add-store-btn" (click)="addStore('edit')">
+          <ion-icon name="add-outline"></ion-icon> Agregar tienda
+        </button>
+      </div>
+
+      <div class="store-group" *ngFor="let t of editForm.tiendas; let i = index">
+        <div class="store-group-head">
+          <span class="store-title">Tienda {{ i + 1 }}</span>
+          <button type="button" class="remove-store" (click)="removeStore('edit', i)" *ngIf="editForm.tiendas.length > 1">
+            <ion-icon name="close-outline"></ion-icon>
+          </button>
+        </div>
+
+        <div class="field small">
+          <ion-icon name="bag-handle-outline"></ion-icon>
+          <input type="text" [(ngModel)]="t.nombre" name="e_tienda_nombre{{i}}" placeholder="Nombre tienda" required />
+        </div>
+
+        <div class="field small">
+          <ion-icon name="link-outline"></ion-icon>
+          <input type="url" [(ngModel)]="t.url" name="e_tienda_url{{i}}" placeholder="URL (opcional)" />
+        </div>
+
+        <div class="field small">
+          <ion-icon name="cash-outline"></ion-icon>
+          <input type="number" inputmode="decimal" min="0" step="0.01"
+                 [(ngModel)]="t.precio" name="e_tienda_precio{{i}}" placeholder="Precio" required />
+        </div>
+      </div>
+
+      <div class="dialog-footer">
+        <button class="btn btn-grad" type="submit" [disabled]="saving">
+          {{ saving ? 'Guardando…' : 'Guardar cambios' }}
+        </button>
+        <button class="btn btn-ghost" type="button" (click)="closeModals()">Cancelar</button>
+      </div>
+
+    </form>
+  </div>
+
+  <!-- ===== MODAL: ELIMINAR ===== -->
+  <div class="dialog dialog-danger" *ngIf="modal==='delete'">
+    <div class="dialog-head">
+      <h3>¿Eliminar producto?</h3>
+      <button class="x" (click)="closeModals()" aria-label="Cerrar"><ion-icon name="close-outline"></ion-icon></button>
+    </div>
+    <p class="dialog-sub">
+      ¿Seguro que quieres eliminar <b>“{{ selectedProduct?.nombre }}”</b>? Esta acción no se puede deshacer.
+    </p>
+    <div class="row">
+      <button class="btn btn-danger" (click)="confirmDelete()" [disabled]="deleting">
+        {{ deleting ? 'Eliminando…' : 'Eliminar' }}
+      </button>
+      <button class="btn btn-ghost" (click)="closeModals()">Cancelar</button>
+    </div>
+  </div>
 </ion-content>
 
-<!-- FAB para agregar producto (abre modal) -->
-<ion-fab vertical="bottom" horizontal="end" slot="fixed" style="bottom: 100px; right: 18px;">
-  <ion-fab-button size="small" color="primary" (click)="openAddProductModal()">
-    <ion-icon name="person-add-outline"></ion-icon>
-  </ion-fab-button>
-</ion-fab>
-
-<!-- Modal agregar producto -->
-<ion-modal [isOpen]="productModalOpen" (didDismiss)="closeProductModal()" [breakpoints]="[0, 0.4, 0.98]"
-  initialBreakpoint="0.4"
-  backdropDismiss="true"
-  style="--height: 90%; --top: 98%;">
-  <ng-template>
-    <ion-header>
-      <ion-toolbar>
-        <ion-title>Agregar Producto</ion-title>
-        <ion-buttons slot="end">
-          <ion-button (click)="closeProductModal()">Cerrar</ion-button>
-        </ion-buttons>
-      </ion-toolbar>
-    </ion-header>
-
-    <ion-content class="ion-padding">
-      <ion-item>
-        <ion-label position="floating">Nombre</ion-label>
-        <ion-input [(ngModel)]="currentProduct.nombre"></ion-input>
-      </ion-item>
-
-      <ion-item>
-        <ion-label position="floating">Marca</ion-label>
-        <ion-input [(ngModel)]="currentProduct.marca"></ion-input>
-      </ion-item>
-
-      <ion-item>
-        <ion-label position="floating">Precio</ion-label>
-        <ion-input type="number" [(ngModel)]="currentProduct.precio_minimo" (ionChange)="onPrecioChange($event)"></ion-input>
-      </ion-item>
-
-      <ion-item>
-        <ion-label position="floating">Descripción</ion-label>
-        <ion-textarea [(ngModel)]="currentProduct.descripcion"></ion-textarea>
-      </ion-item>
-
-      <ion-item>
-        <ion-label position="floating">Tienda</ion-label>
-        <ion-input [(ngModel)]="currentProduct.tienda_mas_barata"></ion-input>
-      </ion-item>
-
-      <ion-item>
-        <ion-label position="floating">URL Imagen</ion-label>
-        <ion-input [(ngModel)]="currentProduct.imagen"></ion-input>
-      </ion-item>
-
-      <ion-button expand="block" class="colorPri" (click)="saveProduct()">
-        Agregar producto
-      </ion-button>
-    </ion-content>
-  </ng-template>
-</ion-modal>
-
-<ion-footer [translucent]="true" class="footer-fixed">
-  <ion-segment [value]="activeTab">
-    <ion-segment-button value="search" (click)="goToProducts()">
-      <ion-label>Buscar</ion-label>
-      <ion-icon name="search-outline"></ion-icon>
+<!-- FOOTER tabs (FIJO) -->
+<ion-footer class="footer-tabs" slot="fixed" [translucent]="false">
+  <ion-segment [value]="activeTab" class="tabs">
+    <ion-segment-button value="home" (click)="goToHome()">
+      <div class="tab"><ion-icon name="home-outline"></ion-icon><span class="tab-label">Inicio</span></div>
+    </ion-segment-button>
+    <ion-segment-button value="explore" (click)="goToExplore()">
+      <div class="tab"><ion-icon name="search-outline"></ion-icon><span class="tab-label">Explorar</span></div>
     </ion-segment-button>
     <ion-segment-button value="favorites" (click)="goToFavorites()">
-      <ion-label>Favoritos</ion-label>
-      <ion-icon name="star-outline"></ion-icon>
+      <div class="tab"><ion-icon name="heart-outline"></ion-icon><span class="tab-label">Favoritos</span></div>
     </ion-segment-button>
     <ion-segment-button value="profile" (click)="goToProfile()">
-      <ion-label>Perfil</ion-label>
-      <ion-icon name="person-outline"></ion-icon>
+      <div class="tab"><ion-icon name="person-outline"></ion-icon><span class="tab-label">Perfil</span></div>
     </ion-segment-button>
   </ion-segment>
 </ion-footer>

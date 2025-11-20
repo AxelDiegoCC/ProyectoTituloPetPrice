@@ -1,145 +1,191 @@
-<ion-header [translucent]="true">
-  <ion-toolbar class="colorPri icon toolbar-flex">
-    <ion-buttons slot="start">
-      <ion-back-button defaultHref="/admin-panel"></ion-back-button>
-    </ion-buttons>
-    <div class="title-container">
-      <ion-title>Usuarios</ion-title>
+<ion-content [fullscreen]="true" class="products-page" [class.modal-open]="modal !== null">
+  <!-- HEADER (no fijo) -->
+  <header class="hero users-hero">
+    <div class="hero-bg"></div>
+
+    <div class="hero-inner">
+      <!-- Barra superior: back ← | título | + Nuevo -->
+      <div class="hero-bar">
+        <button class="hbtn back" aria-label="Volver" (click)="goBack()">
+          <ion-icon name="arrow-back-outline"></ion-icon>
+        </button>
+
+        <div class="hero-headings">
+          <h1 class="hero-title">Gestionar Usuarios</h1>
+          <span class="hero-small">{{ totalLabel }}</span>
+        </div>
+
+        <button class="hbtn primary" aria-label="Nuevo usuario" (click)="openCreate()">
+          <ion-icon name="add"></ion-icon><span>Nuevo</span>
+        </button>
+      </div>
+
+      <!-- Buscador -->
+      <div class="searchbar">
+        <ion-icon name="search-outline"></ion-icon>
+        <input type="text" placeholder="Buscar usuarios..." [(ngModel)]="search" (input)="onSearch()" />
+      </div>
     </div>
-  </ion-toolbar>
-</ion-header>
+  </header>
 
-<ion-content [fullscreen]="true" class="ion-padding">
+  <!-- CONTROLES -->
+  <section class="controls">
+    <div class="left">{{ users.length }} usuarios listados</div>
+    <div class="right">
+      <button class="btn-icon" aria-label="Ordenar">
+        <ion-icon name="swap-vertical-outline"></ion-icon>
+      </button>
+      <button class="btn-chip" (click)="cycleOrder()">
+        <ion-icon name="options-outline"></ion-icon>
+        <span>Orden: {{ orderLabel }}</span>
+      </button>
+    </div>
+  </section>
 
-  <ion-searchbar
-    placeholder="Buscar por nombre o correo"
-    [(ngModel)]="search"
-    (ionInput)="onSearch()">
-  </ion-searchbar>
+  <!-- LISTA -->
+  <section class="list users-list">
+    <article class="u-card" *ngFor="let u of users">
+      <div class="u-thumb">
+        <img class="u-avatar" [src]="avatarFor(u)" [alt]="u.fullName || u.email" />
+      </div>
 
-  <ion-segment [(ngModel)]="orderBy" (ionChange)="reload()">
-    <ion-segment-button value="createdAt"><ion-label>Recientes</ion-label></ion-segment-button>
-    <ion-segment-button value="fullName"><ion-label>Nombre</ion-label></ion-segment-button>
-    <ion-segment-button value="email"><ion-label>Correo</ion-label></ion-segment-button>
-  </ion-segment>
+      <div class="u-body">
+        <div class="u-row">
+          <span class="u-name">{{ u.fullName || '—' }}</span>
+          <span class="u-badge--admin" *ngIf="u.role==='admin'"></span>
+        </div>
 
-  <ion-list inset="true">
-    <ion-item-sliding *ngFor="let u of users; let i = index">
-      <ion-item lines="none">
-        <ion-avatar slot="start">
-          <img src="assets/img/foto-perfil.png" alt="avatar" />
-        </ion-avatar>
+        <div class="u-email">
+          <a [href]="'mailto:'+u.email">{{ u.email }}</a>
+        </div>
 
-        <ion-label>
-          <h3>{{ u.fullName || '—' }}</h3>
-          <p>{{ u.email }}</p>
-          <ion-note>Rol: {{ u.role || 'user' }} · {{ u.phone || 's/teléfono' }}</ion-note>
-        </ion-label>
-      </ion-item>
+        <div class="u-meta">
+          <span class="u-chip u-chip--on"><ion-icon name="ellipse"></ion-icon> Activo</span>
+          <span class="u-since">Desde {{ sinceLabel(u.createdAt) }}</span>
+        </div>
+      </div>
 
-      <ion-item-options side="end">
-        <ion-item-option
-          (click)="editUser(u)"
-          expandable
-          style="display: flex; justify-content: center; align-items: center; background: transparent;">
-          <ion-button fill="solid" color="primary" shape="round" size="small" style="width: 40px; height: 40px; padding: 0;">
-            <ion-icon name="create-outline" style="font-size: 20px;"></ion-icon>
-          </ion-button>
-        </ion-item-option>
+      <!-- Acciones a todo el ancho -->
+      <div class="u-actions u-actions--full">
+        <button type="button" class="u-btn u-btn--edit" (click)="openEdit(u)">
+          <ion-icon name="create-outline"></ion-icon> Editar
+        </button>
+        <button type="button" class="u-btn u-btn--delete" (click)="openDelete(u)">
+          <ion-icon name="trash-outline"></ion-icon> Eliminar
+        </button>
+      </div>
+    </article>
 
-        <ion-item-option
-          (click)="confirmDeleteUser(u)"
-          expandable
-          style="display: flex; justify-content: center; align-items: center; background: transparent;">
-          <ion-button fill="solid" color="danger" shape="round" size="small" style="width: 40px; height: 40px; padding: 0;">
-            <ion-icon name="trash-outline" style="font-size: 20px;"></ion-icon>
-          </ion-button>
-        </ion-item-option>
-      </ion-item-options>
-    </ion-item-sliding>
-  </ion-list>
+    <!-- Paginador simple (opcional) -->
+    <ion-infinite-scroll threshold="120px" (ionInfinite)="loadMore($event)" *ngIf="hasMore">
+      <ion-infinite-scroll-content loadingSpinner="crescent"></ion-infinite-scroll-content>
+    </ion-infinite-scroll>
+  </section>
 
-  <ion-infinite-scroll (ionInfinite)="loadMore($event)" threshold="120px" [disabled]="!hasMore">
-    <ion-infinite-scroll-content
-      loadingSpinner="crescent"
-      loadingText="Cargando...">
-    </ion-infinite-scroll-content>
-  </ion-infinite-scroll>
+  <!-- ====== OVERLAY ====== -->
+  <div class="overlay" *ngIf="modal" (click)="closeModals()"></div>
 
-  <ion-refresher slot="fixed" (ionRefresh)="refresh($event)">
-    <ion-refresher-content></ion-refresher-content>
-  </ion-refresher>
+  <!-- ====== MODAL: NUEVO ====== -->
+  <div class="dialog" *ngIf="modal==='create'">
+    <div class="dialog-head">
+      <h3>Agregar nuevo usuario</h3>
+      <button class="x" (click)="closeModals()" aria-label="Cerrar"><ion-icon name="close-outline"></ion-icon></button>
+    </div>
+    <p class="dialog-sub">Completa los datos para crear un nuevo usuario en el sistema</p>
 
+    <form (ngSubmit)="createUser()" autocomplete="off">
+      <label class="f-label">Nombre completo</label>
+      <div class="field">
+        <ion-icon name="person-outline"></ion-icon>
+        <input type="text" [(ngModel)]="createForm.name" name="c_name" placeholder="Ej: Juan Pérez" required />
+      </div>
+
+      <label class="f-label">Email</label>
+      <div class="field">
+        <ion-icon name="mail-outline"></ion-icon>
+        <input type="email" [(ngModel)]="createForm.email" name="c_email" placeholder="Ej: usuario@example.com" required />
+      </div>
+
+      <label class="f-label">Teléfono</label>
+      <div class="field">
+        <ion-icon name="call-outline"></ion-icon>
+        <input type="tel" [(ngModel)]="createForm.phone" name="c_phone" placeholder="Ej: +56 9 1234 5678" />
+      </div>
+
+      <label class="f-label">Contraseña</label>
+      <div class="field">
+        <ion-icon name="lock-closed-outline"></ion-icon>
+        <input type="password" [(ngModel)]="createForm.password" name="c_pass" placeholder="Mín. 6 caracteres" required />
+      </div>
+
+      <button class="btn btn-grad" type="submit" [disabled]="creating">{{ creating ? 'Creando…' : 'Agregar usuario' }}</button>
+      <button class="btn btn-ghost" type="button" (click)="closeModals()">Cancelar</button>
+    </form>
+  </div>
+
+  <!-- ====== MODAL: EDITAR ====== -->
+  <div class="dialog" *ngIf="modal==='edit'">
+    <div class="dialog-head">
+      <h3>Editar usuario</h3>
+      <button class="x" (click)="closeModals()" aria-label="Cerrar"><ion-icon name="close-outline"></ion-icon></button>
+    </div>
+    <p class="dialog-sub">Modifica los datos del usuario</p>
+
+    <form (ngSubmit)="updateUser()" autocomplete="off">
+      <label class="f-label">Nombre completo</label>
+      <div class="field">
+        <ion-icon name="person-outline"></ion-icon>
+        <input type="text" [(ngModel)]="editForm.name" name="e_name" required />
+      </div>
+
+      <label class="f-label">Email</label>
+      <div class="field">
+        <ion-icon name="mail-outline"></ion-icon>
+        <input type="email" [(ngModel)]="editForm.email" name="e_email" required />
+      </div>
+
+      <label class="f-label">Teléfono</label>
+      <div class="field">
+        <ion-icon name="call-outline"></ion-icon>
+        <input type="tel" [(ngModel)]="editForm.phone" name="e_phone" />
+      </div>
+
+      <button class="btn btn-grad" type="submit" [disabled]="saving">{{ saving ? 'Guardando…' : 'Guardar cambios' }}</button>
+      <button class="btn btn-ghost" type="button" (click)="closeModals()">Cancelar</button>
+    </form>
+  </div>
+
+  <!-- ====== MODAL: ELIMINAR ====== -->
+  <div class="dialog dialog-danger" *ngIf="modal==='delete'">
+    <div class="dialog-head">
+      <h3>¿Eliminar usuario?</h3>
+      <button class="x" (click)="closeModals()" aria-label="Cerrar"><ion-icon name="close-outline"></ion-icon></button>
+    </div>
+    <p class="dialog-sub">
+      ¿Estás seguro de eliminar a <b>“{{ selectedUser?.fullName || selectedUser?.email }}”</b>? Esta acción no se puede deshacer y se eliminarán todos sus datos.
+    </p>
+
+    <div class="row">
+      <button class="btn btn-danger" (click)="confirmDelete()" [disabled]="deleting">{{ deleting ? 'Eliminando…' : 'Eliminar' }}</button>
+      <button class="btn btn-ghost" (click)="closeModals()">Cancelar</button>
+    </div>
+  </div>
 </ion-content>
 
-<!-- FAB pequeño, posicionado más arriba del footer -->
-<ion-fab vertical="bottom" horizontal="end" slot="fixed" style="bottom: 100px; right: 18px;">
-  <ion-fab-button size="small" color="primary" (click)="addUserModalOpen = true">
-    <ion-icon name="person-add-outline"></ion-icon>
-  </ion-fab-button>
-</ion-fab>
-
-<!-- Modal para agregar usuario: usar ng-template para asegurar proyección -->
-<ion-modal
-  [isOpen]="addUserModalOpen"
-  (didDismiss)="addUserModalOpen = false"
-  [breakpoints]="[0, 0.4, 0.9]"
-  initialBreakpoint="0.4"
-  backdropDismiss="true"
-  style="--height: 90%; --top: 90%;">
-
-  <ng-template>
-    <ion-header>
-      <ion-toolbar>
-        <ion-title>Agregar Usuario</ion-title>
-        <ion-buttons slot="end">
-          <ion-button (click)="addUserModalOpen = false">Cerrar</ion-button>
-        </ion-buttons>
-      </ion-toolbar>
-    </ion-header>
-
-    <ion-content class="ion-padding">
-      <ion-item>
-        <ion-label position="floating">Nombre completo</ion-label>
-        <ion-input [(ngModel)]="newUser.name"></ion-input>
-      </ion-item>
-
-      <ion-item>
-        <ion-label position="floating">Correo</ion-label>
-        <ion-input [(ngModel)]="newUser.email" type="email"></ion-input>
-      </ion-item>
-
-      <ion-item>
-        <ion-label position="floating">Teléfono</ion-label>
-        <ion-input [(ngModel)]="newUser.phone"></ion-input>
-      </ion-item>
-
-      <ion-item>
-        <ion-label position="floating">Contraseña</ion-label>
-        <ion-input [(ngModel)]="newUser.password" [type]="showPassword ? 'text' : 'password'"></ion-input>
-        <ion-button slot="end" fill="clear" (click)="showPassword = !showPassword">
-          <ion-icon [name]="showPassword ? 'eye-off-outline' : 'eye-outline'"></ion-icon>
-        </ion-button>
-      </ion-item>
-
-      <ion-button expand="block" class="colorPri" (click)="addUser()">Agregar usuario</ion-button>
-    </ion-content>
-  </ng-template>
-</ion-modal>
-
-<ion-footer [translucent]="true" class="footer-fixed">
-  <ion-segment [value]="activeTab">
-    <ion-segment-button value="search" (click)="goToProducts()">
-      <ion-label>Buscar</ion-label>
-      <ion-icon name="search-outline"></ion-icon>
+<!-- FOOTER tabs (FIJO) -->
+<ion-footer class="footer-tabs" slot="fixed" [translucent]="false">
+  <ion-segment [value]="activeTab" class="tabs">
+    <ion-segment-button value="home" (click)="goToHome()">
+      <div class="tab"><ion-icon name="home-outline"></ion-icon><span class="tab-label">Inicio</span></div>
+    </ion-segment-button>
+    <ion-segment-button value="explore" (click)="goToExplore()">
+      <div class="tab"><ion-icon name="search-outline"></ion-icon><span class="tab-label">Explorar</span></div>
     </ion-segment-button>
     <ion-segment-button value="favorites" (click)="goToFavorites()">
-      <ion-label>Favoritos</ion-label>
-      <ion-icon name="star-outline"></ion-icon>
+      <div class="tab"><ion-icon name="heart-outline"></ion-icon><span class="tab-label">Favoritos</span></div>
     </ion-segment-button>
     <ion-segment-button value="profile" (click)="goToProfile()">
-      <ion-label>Perfil</ion-label>
-      <ion-icon name="person-outline"></ion-icon>
+      <div class="tab"><ion-icon name="person-outline"></ion-icon><span class="tab-label">Perfil</span></div>
     </ion-segment-button>
   </ion-segment>
 </ion-footer>

@@ -1,0 +1,169 @@
+<ion-content [fullscreen]="true" class="home-page">
+  <!-- HEADER (no fijo) -->
+  <header class="home-hero">
+    <div class="hero-bg"></div>
+
+    <div class="hero-inner">
+      <h1 class="hero-title">Hola! 👋</h1>
+      <p class="hero-sub">Encuentra los mejores precios</p>
+
+      <div class="searchbar" (click)="$event.stopPropagation()">
+        <ion-icon name="search-outline"></ion-icon>
+        <input
+          placeholder="Buscar productos..."
+          [(ngModel)]="searchTerm"
+          (input)="onSearchInput()"
+          (focus)="onSearchFocus()"
+          (keyup.enter)="doSearch()"
+        />
+      </div>
+
+      <!-- PANEL de resultados de búsqueda -->
+      <div class="search-panel" *ngIf="searchOpen && searchResults.length" (click)="$event.stopPropagation()">
+        <div class="sp-list">
+          <button class="sp-item" *ngFor="let p of searchResults" (click)="openProduct(p.id)">
+            <img class="sp-thumb" [src]="p.imagen || 'assets/img/placeholder.png'" [alt]="p.nombre" />
+            <div class="sp-body">
+              <div class="sp-name">{{ p.nombre }}</div>
+              <div class="sp-brand">{{ p.marca }}</div>
+            </div>
+            <div class="sp-price">{{ p.priceLabel }}</div>
+          </button>
+        </div>
+
+        <div class="sp-footer">
+          <button class="sp-seeall" (click)="goToSearchPage()">
+            Ver {{ searchCount }} producto{{ searchCount === 1 ? '' : 's' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- CATEGORÍAS -->
+  <section class="home-section home-cats">
+    <article class="cat-card" (click)="goToCategory('perro')">
+      <div class="cat-icon">
+        <ion-icon name="paw-outline"></ion-icon>
+      </div>
+      <h3 class="cat-title">Perros</h3>
+      <p class="cat-sub">Ver productos</p>
+    </article>
+
+    <article class="cat-card" (click)="goToCategory('gato')">
+      <div class="cat-icon cat-orange">
+        <ion-icon name="logo-octocat"></ion-icon>
+      </div>
+      <h3 class="cat-title">Gatos</h3>
+      <p class="cat-sub">Ver productos</p>
+    </article>
+  </section>
+
+  <!-- BANNER -->
+  <section class="home-section">
+    <div class="home-banner">
+      <div class="banner-chip">
+        <ion-icon name="sparkles-outline"></ion-icon>
+        <span>Mejores Ofertas</span>
+      </div>
+
+      <h3 class="banner-title">Compara y Ahorra</h3>
+      <p class="banner-sub">Encuentra el mejor precio en todas las tiendas</p>
+
+      <button class="banner-cta" (click)="seeAll()">
+        <span>Ver todos</span>
+        <ion-icon name="chevron-forward-outline"></ion-icon>
+      </button>
+
+      <div class="banner-illus">
+        <ion-icon name="pricetags-outline"></ion-icon>
+      </div>
+    </div>
+  </section>
+
+  <!-- MEJORES PRECIOS HOY -->
+  <section class="home-section home-best">
+    <div class="sec-head">
+      <div>
+        <h3 class="sec-title">Mejores Precios Hoy</h3>
+        <p class="sec-sub">Actualizados en tiempo real</p>
+      </div>
+      <button class="link-more" (click)="seeAll()">
+        <span>Ver más</span><ion-icon name="chevron-forward-outline"></ion-icon>
+      </button>
+    </div>
+
+    <div class="best-grid">
+      <article class="p-card" *ngFor="let p of bestProducts" (click)="openProduct(p.id)">
+        <div class="p-media">
+          <img class="p-thumb" [src]="p.imagen || 'assets/img/placeholder.png'" [alt]="p.nombre" />
+          <div class="p-actions">
+            <!-- Solo mostrar corazón si hay sesión -->
+            <button class="p-icon"
+                    aria-label="Favorito"
+                    *ngIf="isLoggedIn"
+                    (click)="toggleFavorite(p, $event)">
+              <ion-icon [name]="favIds.has(p.id) ? 'heart' : 'heart-outline'"></ion-icon>
+            </button>
+          </div>
+        </div>
+        <div class="p-body">
+          <div class="p-brand">{{ p.marca }}</div>
+          <h4 class="p-name">{{ p.nombre }}</h4>
+          <div class="p-price">{{ p.priceLabel }}</div>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <!-- ¿POR QUÉ ELEGIRNOS? -->
+  <section class="home-section home-trust">
+    <h3 class="sec-title small">¿Por qué elegirnos?</h3>
+    <div class="trust-grid">
+      <article class="trust-card">
+        <div class="icon"><ion-icon name="trending-down-outline"></ion-icon></div>
+        <h4>Mejor Precio</h4>
+        <p>Siempre garantizado</p>
+      </article>
+      <article class="trust-card">
+        <div class="icon"><ion-icon name="shield-checkmark-outline"></ion-icon></div>
+        <h4>Verificado</h4>
+        <p>Tiendas confiables</p>
+      </article>
+      <article class="trust-card">
+        <div class="icon"><ion-icon name="git-compare-outline"></ion-icon></div>
+        <h4>Compara</h4>
+        <p>Múltiples tiendas</p>
+      </article>
+    </div>
+  </section>
+</ion-content>
+
+<!-- FOOTER fijo -->
+<ion-footer class="footer-tabs" slot="fixed" [translucent]="false">
+  <ion-segment [value]="activeTab" class="tabs">
+    <ion-segment-button value="home"
+      (click)="goToHome()"
+      [class.segment-button-checked]="activeTab === 'home'">
+      <div class="tab"><ion-icon name="home-outline"></ion-icon><span class="tab-label">Inicio</span></div>
+    </ion-segment-button>
+
+    <ion-segment-button value="explore"
+      (click)="goToExplore()
+      " [class.segment-button-checked]="activeTab === 'explore'">
+      <div class="tab"><ion-icon name="search-outline"></ion-icon><span class="tab-label">Explorar</span></div>
+    </ion-segment-button>
+
+    <ion-segment-button value="favorites"
+      (click)="goToFavorites()"
+      [class.segment-button-checked]="activeTab === 'favorites'">
+      <div class="tab"><ion-icon name="heart-outline"></ion-icon><span class="tab-label">Favoritos</span></div>
+    </ion-segment-button>
+
+    <ion-segment-button value="profile"
+      (click)="goToProfile()"
+      [class.segment-button-checked]="activeTab === 'profile'">
+      <div class="tab"><ion-icon name="person-outline"></ion-icon><span class="tab-label">Perfil</span></div>
+    </ion-segment-button>
+  </ion-segment>
+</ion-footer>

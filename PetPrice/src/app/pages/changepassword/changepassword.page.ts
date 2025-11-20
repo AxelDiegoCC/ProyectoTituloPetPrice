@@ -3,7 +3,7 @@ import { IonicModule, ToastController } from '@ionic/angular';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Auth, sendPasswordResetEmail } from '@angular/fire/auth';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 
 @Component({
   selector: 'app-changepassword',
@@ -27,12 +27,15 @@ export class ChangepasswordPage {
   constructor(
     private auth: Auth,
     private toastCtrl: ToastController,
-    public router: Router
+    private router: Router,
+    private route: ActivatedRoute
   ) {}
 
   /** Limpia campos y estado (igual que en Login) */
   private resetForm() {
-    this.email = '';
+    // Conserva email si llega por query param
+    const qEmail = this.route.snapshot.queryParamMap.get('email') || '';
+    this.email = qEmail || '';
     this.step = 1;
 
     this.emailTouched = false;
@@ -43,14 +46,10 @@ export class ChangepasswordPage {
   }
 
   /** Cada vez que entras, deja la vista limpia */
-  ionViewWillEnter() {
-    this.resetForm();
-  }
+  ionViewWillEnter() { this.resetForm(); }
 
   /** Al salir, limpia también (por si vuelves atrás) */
-  ionViewDidLeave() {
-    this.resetForm();
-  }
+  ionViewDidLeave() { this.resetForm(); }
 
   // ===== Validación =====
   private validateEmail(): string | null {
@@ -61,9 +60,7 @@ export class ChangepasswordPage {
     return null;
   }
 
-  updateEmailError() {
-    this.emailError = this.validateEmail();
-  }
+  updateEmailError() { this.emailError = this.validateEmail(); }
 
   onEmailInput() {
     clearTimeout(this.emailDebounce);
@@ -76,7 +73,6 @@ export class ChangepasswordPage {
   async sendResetEmail() {
     this.attemptedSubmit = true;
     this.updateEmailError();
-
     if (this.emailError) return;
 
     try {
@@ -111,7 +107,5 @@ export class ChangepasswordPage {
     await toast.present();
   }
 
-  goToLogin() {
-    this.router.navigate(['/login']);
-  }
+  goToLogin() { this.router.navigate(['/login']); }
 }

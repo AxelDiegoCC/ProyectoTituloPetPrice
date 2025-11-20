@@ -1,10 +1,12 @@
-import { Component, ChangeDetectorRef } from '@angular/core';
+import { Component, ChangeDetectorRef, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { IonicModule, ToastController } from '@ionic/angular';
 import { Router } from '@angular/router';
-import { Auth } from '@angular/fire/auth';
-import { Firestore, doc, getDoc } from '@angular/fire/firestore';
+import { Auth, onAuthStateChanged } from '@angular/fire/auth';
+import { Firestore, doc, getDoc, collection, getCountFromServer } from '@angular/fire/firestore';
+
+type Tab = 'home' | 'explore' | 'favorites' | 'profile';
 
 @Component({
   selector: 'app-admin-panel',
@@ -13,8 +15,18 @@ import { Firestore, doc, getDoc } from '@angular/fire/firestore';
   standalone: true,
   imports: [IonicModule, CommonModule, FormsModule]
 })
-export class AdminPanelPage {
-  activeTab: 'search' | 'favorites' | 'profile' = 'profile';
+export class AdminPanelPage implements OnInit {
+  activeTab: Tab = 'profile';
+
+  // Perfil
+  email: string | null = null;
+  displayName: string | null = null;
+  photoUrl: string | null = null;
+  role: 'admin' | 'user' | string = 'user';
+
+  // KPIs
+  kpiProducts = 0;
+  kpiUsers = 0;
 
   constructor(
     private router: Router,
@@ -24,23 +36,52 @@ export class AdminPanelPage {
     private toastCtrl: ToastController
   ) {}
 
+  ngOnInit() {
+    onAuthStateChanged(this.auth, async (user) => {
+      if (!user) {
+        await this.presentMsg('Debes iniciar sesión', 'danger');
+        await this.router.navigate(['/login']);
+        return;
+      }
+      this.email = user.email;
+      this.displayName = user.displayName || 'Administrador';
+      this.photoUrl = user.photoURL || null;
+
+      // Rol
+      try {
+        const snap = await getDoc(doc(this.firestore, 'users', user.uid));
+        this.role = snap.exists() ? ((snap.data() as any).role || 'user') : 'user';
+      } catch { this.role = 'user'; }
+
+      if (this.role !== 'admin') {
+        await this.presentMsg('No tienes permisos para ver el panel de admin', 'danger');
+        await this.router.navigate(['/profile']);
+        return;
+      }
+
+      this.loadKPIs();
+      this.cdr.detectChanges();
+    });
+  }
+
   ionViewWillEnter() {
     this.activeTab = this.detectSectionFromUrl(this.router.url);
     this.cdr.detectChanges();
   }
 
-  private detectSectionFromUrl(url: string): 'search' | 'favorites' | 'profile' {
+  private detectSectionFromUrl(url: string): Tab {
     const clean = url.split('?')[0].split('#')[0].toLowerCase();
     const segs = clean.split('/').filter(Boolean);
     const business = segs.find(s =>
-      s === 'products' || s === 'favorites' || s === 'profile' || s === 'admin-panel'
+      s === 'products' || s === 'favorites' || s === 'profile' || s === 'admin-panel' || s === 'home'
     );
     if (business === 'favorites') return 'favorites';
     if (business === 'profile' || business === 'admin-panel') return 'profile';
-    return 'search';
+    if (business === 'home') return 'home';
+    return 'explore';
   }
 
-  // ===== Verificación de rol =====
+  // ===== Acciones Area de Gestión =====
   private async isAdmin(): Promise<boolean> {
     const user = this.auth.currentUser;
     if (!user) return false;
@@ -48,44 +89,31 @@ export class AdminPanelPage {
       const snap = await getDoc(doc(this.firestore, 'users', user.uid));
       const role = snap.exists() ? ((snap.data() as any).role || 'user') : 'user';
       return role === 'admin';
+    } catch { return false; }
+  }
+
+  async goManageUsers()    { (await this.isAdmin()) ? this.router.navigate(['/admin-users-panel'])    : this.presentMsg('No tienes permisos para gestionar usuarios', 'danger'); }
+  async goManageProducts() { (await this.isAdmin()) ? this.router.navigate(['/admin-products-panel']) : this.presentMsg('No tienes permisos para gestionar productos', 'danger'); }
+  goSystemSettings()       { this.router.navigate(['/configurations']); }
+
+  // ===== KPIs =====
+  private async loadKPIs() {
+    try {
+      const prodCount = await getCountFromServer(collection(this.firestore, 'products'));
+      const userCount = await getCountFromServer(collection(this.firestore, 'users'));
+      this.kpiProducts = prodCount.data().count || 0;
+      this.kpiUsers = userCount.data().count || 0;
     } catch {
-      return false;
+      this.kpiProducts = 0;
+      this.kpiUsers = 0;
     }
   }
 
-  // ===== Acciones de la sección "Área de Gestión" =====
-  async goManageUsers() {
-    if (await this.isAdmin()) {
-      await this.router.navigate(['/admin-users-panel']);
-    } else {
-      this.presentMsg('No tienes permisos para gestionar usuarios', 'danger');
-    }
-  }
-
-  async goManageProducts() {
-    if (await this.isAdmin()) {
-      await this.router.navigate(['/admin-products-panel']);
-    } else {
-      this.presentMsg('No tienes permisos para gestionar productos', 'danger');
-    }
-  }
-
-  // ===== Footer nav =====
-  async goToProducts() {
-    this.activeTab = 'search';
-    await this.router.navigate(['/products']);
-    this.cdr.detectChanges();
-  }
-
-  async goToFavorites() {
-    this.activeTab = 'favorites';
-    await this.router.navigate(['/favorites']);
-    this.cdr.detectChanges();
-  }
-
-  async goToProfile()  {
-    await this.navigateToProfileByRole();
-  }
+  // ===== Footer nav (rutas correctas) =====
+  async goToHome()      { this.activeTab = 'home';      await this.safeNavigate('/home'); }
+  async goToExplore()   { this.activeTab = 'explore';   await this.safeNavigate('/products'); } // explore -> /products
+  async goToFavorites() { this.activeTab = 'favorites'; await this.safeNavigate('/favorites'); }
+  async goToProfile()   { await this.navigateToProfileByRole(); }
 
   private async navigateToProfileByRole() {
     const user = this.auth.currentUser;
@@ -103,19 +131,22 @@ export class AdminPanelPage {
     }
   }
 
-  // ===== Cerrar sesión =====
   async logout() {
     try {
       await this.auth.signOut();
       await this.presentMsg('Sesión cerrada correctamente', 'primary');
       await this.router.navigate(['/login']);
-    } catch (e) {
-      await this.presentMsg('Error al cerrar sesión', 'danger');
-    }
+    } catch { await this.presentMsg('Error al cerrar sesión', 'danger'); }
   }
 
   private async presentMsg(message: string, color: 'primary' | 'danger' | 'success' = 'primary') {
     const toast = await this.toastCtrl.create({ message, duration: 2500, color });
     await toast.present();
+  }
+
+  private async safeNavigate(target: string) {
+    const current = this.router.url.split('?')[0].split('#')[0];
+    if (current !== target) await this.router.navigate([target]);
+    this.cdr.detectChanges();
   }
 }

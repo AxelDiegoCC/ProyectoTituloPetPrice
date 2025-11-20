@@ -1,95 +1,194 @@
-<ion-header [translucent]="true">
-  <ion-toolbar class="colorPri icon toolbar-flex">
-    <div class="title-container">
-      <ion-title>Mi Perfil</ion-title>
-    </div>
-  </ion-toolbar>
-</ion-header>
+<ion-content [fullscreen]="true" class="profile-page" [class.editing]="editing">
+  <!-- HEADER (no fijo, dentro del content) -->
+  <header class="hero">
+    <div class="hero-bg"></div>
+    <div class="hero-curve"></div>
 
-<ion-content [fullscreen]="true" class="profile-screen ion-padding">
-
-  <!-- Cabecera compacta: avatar + nombre + correo -->
-  <ion-card class="profile-head-card">
-    <ion-card-content class="profile-head">
-      <ion-avatar class="avatar">
-        <img src="assets/img/foto-perfil.png" alt="Foto de perfil" />
-      </ion-avatar>
-      <div class="user-info">
-        <div class="name">{{ fullName || 'Usuario' }}</div>
-        <div class="email">{{ email || 'correo@ejemplo.com' }}</div>
+    <div class="hero-inner">
+      <div class="hero-title">
+        <span>Mi Perfil</span>
       </div>
-    </ion-card-content>
-  </ion-card>
 
-  <div class="section-title">Información Personal</div>
+      <!-- Card: Perfil -->
+      <div class="profile-card">
+        <img
+          class="avatar"
+          [src]="photoUrl || 'assets/img/foto-perfil.png'"
+          alt="Usuario"
+        />
 
-  <!-- LECTURA -->
-  <ng-container *ngIf="!editing; else editMode">
-    <div class="field-static">Nombre Completo: {{ fullName || '—' }}</div>
-    <div class="field-static">Corr. Electr: {{ email || '—' }}</div>
-    <div class="field-static">Num. Teléfono: {{ phone || '—' }}</div>
+        <div class="info">
+          <h3 class="name">{{ fullName || '—' }}</h3>
+          <p class="email">{{ email || '—' }}</p>
 
-    <div class="baseBtn">
-      <ion-button expand="block" class="btnCua" (click)="enableEditing()">
-        Editar Información
-      </ion-button>
-      <ion-button expand="block" fill="outline" class="btn-float" (click)="logout()">
-        Cerrar sesión
-      </ion-button>
+          <!-- Botón Editar -->
+          <button class="edit" *ngIf="!editing" (click)="enableEditing()">
+            <ion-icon name="create-outline"></ion-icon>
+            <span>Editar Perfil</span>
+          </button>
+
+          <!-- Acciones edición -->
+          <div class="edit-actions" *ngIf="editing">
+            <button type="button" class="btn cancel" (click)="cancelChanges()">
+              <ion-icon name="close-outline"></ion-icon>
+              <span>Cancelar</span>
+            </button>
+            <button type="button" class="btn save" (click)="saveChanges()">
+              <ion-icon name="checkmark-outline"></ion-icon>
+              <span>Guardar</span>
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
-  </ng-container>
 
-  <!-- EDICIÓN -->
-  <ng-template #editMode>
-    <ion-item class="profile-field">
-      <ion-label position="stacked">Nombre Completo</ion-label>
-      <ion-input [(ngModel)]="fullName" placeholder="Ingresa tu nombre"></ion-input>
-    </ion-item>
-
-    <ion-item class="profile-field">
-      <ion-label position="stacked">Correo Electrónico</ion-label>
-      <ion-input [(ngModel)]="email" type="email" placeholder="correo@ejemplo.com"></ion-input>
-    </ion-item>
-
-    <ion-item class="profile-field">
-      <ion-label position="stacked">Número de Teléfono</ion-label>
-      <ion-input [(ngModel)]="phone" type="tel" placeholder="+56 9 ..."></ion-input>
-    </ion-item>
-
-    <ion-item class="profile-field">
-      <ion-label position="stacked">Nueva Contraseña (opcional)</ion-label>
-      <ion-input [(ngModel)]="password" type="password" placeholder="••••••••"></ion-input>
-    </ion-item>
-
-    <div class="baseBtn">
-      <!-- Guardar en naranja (reutiliza patrón de botones) -->
-      <ion-button expand="block" class="btnQui" (click)="saveChanges()">
-        Guardar
-      </ion-button>
-      <!-- Cancelar con tu btnSec, pero anchura adaptada localmente -->
-      <ion-button expand="block" fill="outline" class="btnSex" (click)="cancelChanges()">
-        Cancelar
-      </ion-button>
+    <!-- Card: Favoritos -->
+    <div class="favorites-card">
+      <div class="fav-stack">
+        <div class="fav-icon"><ion-icon name="heart-outline"></ion-icon></div>
+        <div class="fav-count">{{ favoritesCount || 0 }}</div>
+        <div class="fav-caption">productos guardados</div>
+      </div>
     </div>
-  </ng-template>
+  </header>
+
+  <!-- CONTENIDO -->
+  <section class="content">
+    <!-- Información Personal -->
+    <div class="section-card">
+      <div class="section-title">
+        Información Personal
+        <span class="badge-editing" *ngIf="editing">Editando…</span>
+      </div>
+
+      <!-- NOMBRE -->
+      <div class="item">
+        <div class="icon bubble indigo"><ion-icon name="person-outline"></ion-icon></div>
+        <div class="body">
+          <div class="label">Nombre</div>
+          <div class="value" *ngIf="!editing">{{ fullName || '—' }}</div>
+          <input
+            *ngIf="editing"
+            class="value-input"
+            type="text"
+            [(ngModel)]="fullName"
+            name="fullName"
+            placeholder="Tu nombre"
+          />
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- EMAIL -->
+      <div class="item">
+        <div class="icon bubble green"><ion-icon name="mail-outline"></ion-icon></div>
+        <div class="body">
+          <div class="label">Correo electrónico</div>
+          <div class="value" *ngIf="!editing">{{ email || '—' }}</div>
+          <input
+            *ngIf="editing"
+            class="value-input"
+            type="email"
+            [(ngModel)]="email"
+            name="email"
+            placeholder="email@ejemplo.com"
+          />
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- TELÉFONO -->
+      <div class="item">
+        <div class="icon bubble purple"><ion-icon name="call-outline"></ion-icon></div>
+        <div class="body">
+          <div class="label">Teléfono</div>
+          <div class="value" *ngIf="!editing">{{ phone || '—' }}</div>
+          <input
+            *ngIf="editing"
+            class="value-input"
+            type="tel"
+            [(ngModel)]="phone"
+            name="phone"
+            placeholder="+56 9 1234 5678"
+          />
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- MIEMBRO DESDE (solo lectura) -->
+      <div class="item">
+        <div class="icon bubble orange"><ion-icon name="calendar-outline"></ion-icon></div>
+        <div class="body">
+          <div class="label">Miembro desde</div>
+          <div class="value">{{ memberSince || '—' }}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Configuración -->
+    <button class="config-card" (click)="goToSettings()">
+      <div class="icon bubble gray"><ion-icon name="settings-outline"></ion-icon></div>
+      <div class="cfg-body">
+        <div class="cfg-title">Configuración</div>
+        <div class="cfg-sub">Notificaciones, seguridad y más</div>
+      </div>
+      <ion-icon class="chev" name="chevron-forward-outline"></ion-icon>
+    </button>
+
+    <!-- Logout -->
+    <button class="btn-logout" (click)="logout()">
+      <ion-icon name="log-out-outline"></ion-icon>
+      <span>Cerrar sesión</span>
+    </button>
+
+    <!-- Legal -->
+    <div class="legal">
+      <p>PetCompare Admin - Versión 2.6.4</p>
+      <p>© 2025 Todos los derechos reservados</p>
+    </div>
+  </section>
 </ion-content>
 
-<!-- Footer ya unificado en toda la app -->
-<ion-footer slot="fixed" [translucent]="true" class="footer-fixed">
-  <ion-segment [value]="activeTab">
-    <ion-segment-button value="search" (click)="goToProducts()">
-      <ion-label>Buscar</ion-label>
-      <ion-icon name="search-outline"></ion-icon>
+<!-- FOOTER fijo -->
+<ion-footer class="footer-tabs" slot="fixed" [translucent]="false">
+  <ion-segment class="tabs" [value]="activeTab">
+    <ion-segment-button value="home"
+      (click)="goToHome()"
+      [class.segment-button-checked]="activeTab === 'home'">
+      <div class="tab">
+        <ion-icon name="home-outline"></ion-icon>
+        <span class="tab-label">Inicio</span>
+      </div>
     </ion-segment-button>
 
-    <ion-segment-button value="favorites" (click)="goToFavorites()">
-      <ion-label>Favoritos</ion-label>
-      <ion-icon name="star-outline"></ion-icon>
+    <ion-segment-button value="explore"
+      (click)="goToExplore()"
+      [class.segment-button-checked]="activeTab === 'explore'">
+      <div class="tab">
+        <ion-icon name="search-outline"></ion-icon>
+        <span class="tab-label">Explorar</span>
+      </div>
     </ion-segment-button>
 
-    <ion-segment-button value="profile" (click)="goToProfile()">
-      <ion-label>Perfil</ion-label>
-      <ion-icon name="person-outline"></ion-icon>
+    <ion-segment-button value="favorites"
+      (click)="goToFavorites()"
+      [class.segment-button-checked]="activeTab === 'favorites'">
+      <div class="tab">
+        <ion-icon name="heart-outline"></ion-icon>
+        <span class="tab-label">Favoritos</span>
+      </div>
+    </ion-segment-button>
+
+    <ion-segment-button value="profile"
+      (click)="goToProfile()"
+      [class.segment-button-checked]="activeTab === 'profile'">
+      <div class="tab">
+        <ion-icon name="person-outline"></ion-icon>
+        <span class="tab-label">Perfil</span>
+      </div>
     </ion-segment-button>
   </ion-segment>
 </ion-footer>
