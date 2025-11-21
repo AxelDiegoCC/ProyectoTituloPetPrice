@@ -1,2 +1,0 @@
-Debido a que GitHub no puede subir archivos grandes, se deja link del drive donde también esta alojado el código del sistema "PetPrice"
-Google Drive: https://drive.google.com/drive/folders/1JSpqSwiN6OIpAOtu1xUNgChU-LpeJjYB?usp=sharing
